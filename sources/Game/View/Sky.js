@@ -30,6 +30,8 @@ export default class Sky
         this.setBackground()
         this.setSphere()
         this.setSun()
+        this.setMoon()
+        this.setShootingStar()
         this.setStars()
         this.setDebug()
     }
@@ -91,8 +93,8 @@ export default class Sky
         this.sphere.material.uniforms.uColorDayCycleHigh.value.set('#2e89ff')
         this.sphere.material.uniforms.uColorNightLow.value.set('#004794')
         this.sphere.material.uniforms.uColorNightHigh.value.set('#001624')
-        this.sphere.material.uniforms.uColorSun.value.set('#ff531a')
-        this.sphere.material.uniforms.uColorDawn.value.set('#ff1900')
+        this.sphere.material.uniforms.uColorSun.value.set('#ffa54a')
+        this.sphere.material.uniforms.uColorDawn.value.set('#ff7038')
         this.sphere.material.uniforms.uDayCycleProgress.value = 0
         this.sphere.material.side = THREE.BackSide
 
@@ -112,6 +114,47 @@ export default class Sky
         const material = new THREE.MeshBasicMaterial({ color: 0xffffff })
         this.sun.mesh = new THREE.Mesh(geometry, material)
         this.group.add(this.sun.mesh)
+    }
+
+    setMoon()
+    {
+        this.moon = {}
+        this.moon.distance = this.outerDistance - 50
+
+        const geometry = new THREE.CircleGeometry(0.012 * this.moon.distance, 32)
+        const material = new THREE.MeshBasicMaterial({
+            color: '#e8f0ff',
+            transparent: true,
+            opacity: 0,
+            depthWrite: false
+        })
+        this.moon.mesh = new THREE.Mesh(geometry, material)
+        this.group.add(this.moon.mesh)
+    }
+
+    setShootingStar()
+    {
+        this.shootingStar = {}
+        this.shootingStar.distance = this.outerDistance - 100
+        this.shootingStar.active = false
+        this.shootingStar.nextTime = 20
+        this.shootingStar.startTime = 0
+        this.shootingStar.duration = 1
+        this.shootingStar.start = new THREE.Vector3()
+        this.shootingStar.end = new THREE.Vector3()
+        this.shootingStar.direction = new THREE.Vector3()
+
+        const geometry = new THREE.PlaneGeometry(30, 0.8)
+        const material = new THREE.MeshBasicMaterial({
+            color: '#ffffff',
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        })
+        this.shootingStar.mesh = new THREE.Mesh(geometry, material)
+        this.group.add(this.shootingStar.mesh)
     }
 
     setStars()
@@ -240,6 +283,63 @@ export default class Sky
             playerState.position.current[1],
             playerState.position.current[2]
         )
+
+        // Moon (opposite the sun, fades in at night)
+        const nightness = Math.min(Math.max((- sunState.position.y - 0.05) * 5, 0), 1)
+
+        this.moon.mesh.position.set(
+            - sunState.position.x * this.moon.distance,
+            - sunState.position.y * this.moon.distance,
+            - sunState.position.z * this.moon.distance
+        )
+        this.moon.mesh.lookAt(
+            playerState.position.current[0],
+            playerState.position.current[1],
+            playerState.position.current[2]
+        )
+        this.moon.mesh.material.opacity = nightness
+
+        // Shooting star
+        const time = this.state.time
+
+        if(!this.shootingStar.active && nightness > 0.5 && time.elapsed > this.shootingStar.nextTime)
+        {
+            this.shootingStar.active = true
+            this.shootingStar.startTime = time.elapsed
+
+            const theta = Math.random() * Math.PI * 2
+            const phi = (0.15 + Math.random() * 0.25) * Math.PI
+            this.shootingStar.start.setFromSphericalCoords(this.shootingStar.distance, phi, theta)
+            this.shootingStar.end.setFromSphericalCoords(this.shootingStar.distance, phi + 0.15, theta + 0.25)
+        }
+
+        if(this.shootingStar.active)
+        {
+            const progress = (time.elapsed - this.shootingStar.startTime) / this.shootingStar.duration
+
+            if(progress >= 1)
+            {
+                this.shootingStar.active = false
+                this.shootingStar.nextTime = time.elapsed + 20 + Math.random() * 40
+                this.shootingStar.mesh.material.opacity = 0
+            }
+            else
+            {
+                this.shootingStar.mesh.position.lerpVectors(this.shootingStar.start, this.shootingStar.end, progress)
+                this.shootingStar.mesh.lookAt(
+                    playerState.position.current[0],
+                    playerState.position.current[1],
+                    playerState.position.current[2]
+                )
+
+                // Roll the streak so its long axis follows the motion
+                this.shootingStar.direction.subVectors(this.shootingStar.end, this.shootingStar.start).normalize()
+                const localDirection = this.shootingStar.direction.clone().applyQuaternion(this.shootingStar.mesh.quaternion.clone().invert())
+                this.shootingStar.mesh.rotateZ(Math.atan2(localDirection.y, localDirection.x))
+
+                this.shootingStar.mesh.material.opacity = Math.sin(progress * Math.PI) * nightness
+            }
+        }
 
         // Stars
         this.stars.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)

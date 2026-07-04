@@ -17,6 +17,7 @@ export default class Game
             return Game.instance
 
         Game.instance = this
+        window.game = this
 
         this.seed = 'p'
         this.debug = new Debug()

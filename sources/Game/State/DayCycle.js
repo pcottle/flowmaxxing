@@ -13,7 +13,8 @@ export default class DayCycle
         this.autoUpdate = true
         this.timeProgress = 0
         this.progress = 0
-        this.duration = 15 // Seconds
+        this.duration = 360 // Seconds
+        this.goldenHourStretch = 0.6 // 0 = linear time, <1 keeps progress monotonic
 
         this.setDebug()
     }
@@ -25,7 +26,10 @@ export default class DayCycle
         if(this.autoUpdate)
         {
             this.timeProgress += time.delta / this.duration
-            this.progress = this.timeProgress % 1
+
+            // Warp progress so dawn/dusk (0.25 / 0.75) linger and noon/midnight pass quickly
+            const linearProgress = this.timeProgress % 1
+            this.progress = (linearProgress + (this.goldenHourStretch / (Math.PI * 4)) * Math.sin(Math.PI * 4 * linearProgress)) % 1
         }
     }
 
@@ -48,7 +52,13 @@ export default class DayCycle
         folder
             .add(this, 'duration')
             .min(5)
-            .max(100)
+            .max(900)
             .step(1)
+
+        folder
+            .add(this, 'goldenHourStretch')
+            .min(0)
+            .max(0.95)
+            .step(0.01)
     }
 }

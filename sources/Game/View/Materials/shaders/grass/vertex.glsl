@@ -1,6 +1,8 @@
 #define M_PI 3.1415926535897932384626433832795
 
 uniform float uTime;
+uniform float uWindTime;
+uniform float uWindStrength;
 uniform float uGrassDistance;
 uniform vec3 uPlayerPosition;
 uniform float uTerrainSize;
@@ -14,6 +16,8 @@ uniform vec2 uTerrainCOffset;
 uniform sampler2D uTerrainDTexture;
 uniform vec2 uTerrainDOffset;
 uniform sampler2D uNoiseTexture;
+uniform float uPlayerPushRadius;
+uniform float uPlayerPushStrength;
 uniform float uFresnelOffset;
 uniform float uFresnelScale;
 uniform float uFresnelPower;
@@ -32,6 +36,7 @@ varying vec3 vColor;
 #include ../partials/getSunReflectionColor.glsl;
 #include ../partials/getGrassAttenuation.glsl;
 #include ../partials/getRotatePivot2d.glsl;
+#include ../partials/getTimeOfDayColor.glsl;
 
 void main()
 {
@@ -87,10 +92,20 @@ void main()
     float tipness = step(2.0, mod(float(gl_VertexID) + 1.0, 3.0));
 
     // Wind
-    vec2 noiseUv = modelPosition.xz * 0.02 + uTime * 0.05;
+    vec2 noiseUv = modelPosition.xz * 0.02 + uWindTime * 0.05;
     vec4 noiseColor = texture2D(uNoiseTexture, noiseUv);
-    modelPosition.x += (noiseColor.x - 0.5) * tipness * scale;
-    modelPosition.z += (noiseColor.y - 0.5) * tipness * scale;
+    float windAmplitude = mix(0.4, 1.6, uWindStrength) * tipness * scale;
+    modelPosition.x += (noiseColor.x - 0.5) * windAmplitude;
+    modelPosition.z += (noiseColor.y - 0.5) * windAmplitude;
+
+    // Player push-away
+    vec2 toPlayer = modelCenter.xz - uPlayerPosition.xz;
+    float distanceToPlayer = length(toPlayer);
+    float push = 1.0 - smoothstep(0.0, uPlayerPushRadius, distanceToPlayer);
+    float pushHeightAttenuation = 1.0 - smoothstep(0.6, 2.5, uPlayerPosition.y - modelCenter.y);
+    push *= pushHeightAttenuation * uPlayerPushStrength * tipness * scale;
+    modelPosition.xz += normalize(toPlayer + vec2(0.0001)) * push;
+    modelPosition.y -= push * 0.4;
 
     // Final position
     vec4 viewPosition = viewMatrix * modelPosition;
@@ -106,6 +121,9 @@ void main()
     vec3 uGrassShadedColor = vec3(0.52 / 1.3, 0.65 / 1.3, 0.26 / 1.3);
     vec3 lowColor = mix(uGrassShadedColor, uGrassDefaultColor, 1.0 - scale); // Match the terrain
     vec3 color = mix(lowColor, uGrassDefaultColor, tipness);
+
+    // Time of day tint
+    color = getTimeOfDayColor(color);
 
     // Sun shade
     float sunShade = getSunShade(normal);

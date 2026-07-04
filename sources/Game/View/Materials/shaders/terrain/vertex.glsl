@@ -18,6 +18,7 @@ varying vec3 vColor;
 #include ../partials/getSunReflectionColor.glsl;
 #include ../partials/getFogColor.glsl;
 #include ../partials/getGrassAttenuation.glsl;
+#include ../partials/getTimeOfDayColor.glsl;
 
 void main()
 {
@@ -49,6 +50,9 @@ void main()
     vec3 grassColor = mix(uGrassShadedColor, uGrassDefaultColor, 1.0 - grassAttenuation);
 
     vec3 color = grassColor;
+
+    // Time of day tint
+    color = getTimeOfDayColor(color);
 
     // Sun shade
     float sunShade = getSunShade(normal);

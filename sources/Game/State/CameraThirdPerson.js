@@ -21,11 +21,15 @@ export default class CameraThirdPerson
         this.theta = - Math.PI * 0.25
         this.aboveOffset = 2
         this.phiLimits = { min: 0.1, max: Math.PI - 0.1 }
+        this.springRate = 6
+        this.positionInitialised = false
+        this.autoTurnRate = 1.2
     }
 
     activate()
     {
         this.active = true
+        this.positionInitialised = false
     }
 
     deactivate()
@@ -50,15 +54,42 @@ export default class CameraThirdPerson
             if(this.phi > this.phiLimits.max)
                 this.phi = this.phiLimits.max
         }
-        
-        // Position
+        else if(this.player.horizontalSpeed > 2)
+        {
+            // Drift the camera to look where the player is going
+            let angleDelta = this.player.rotation - this.theta
+            angleDelta = ((angleDelta + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI
+
+            // Ignore near-opposite headings (e.g. walking backward) to avoid spinning
+            if(Math.abs(angleDelta) < Math.PI * 0.65)
+            {
+                const time = this.state.time
+                const strength = Math.min(this.player.horizontalSpeed / 30, 1)
+                this.theta += angleDelta * (1 - Math.exp(- this.autoTurnRate * (0.4 + strength) * time.delta))
+            }
+        }
+
+
+        // Position (springs toward the ideal orbit position)
         const sinPhiRadius = Math.sin(this.phi) * this.distance
         const sphericalPosition = vec3.fromValues(
             sinPhiRadius * Math.sin(this.theta),
             Math.cos(this.phi) * this.distance,
             sinPhiRadius * Math.cos(this.theta)
         )
-        vec3.add(this.position, this.player.position.current, sphericalPosition)
+        const desiredPosition = vec3.create()
+        vec3.add(desiredPosition, this.player.position.current, sphericalPosition)
+
+        if(this.positionInitialised)
+        {
+            const time = this.state.time
+            vec3.lerp(this.position, this.position, desiredPosition, 1 - Math.exp(- this.springRate * time.delta))
+        }
+        else
+        {
+            vec3.copy(this.position, desiredPosition)
+            this.positionInitialised = true
+        }
 
         // Target
         const target = vec3.fromValues(

@@ -1,9 +1,12 @@
+import Audio from './Audio.js'
 import Camera from './Camera.js'
 import Chunks from './Chunks.js'
 import Grass from './Grass.js'
 import Noises from './Noises.js'
+import Particles from './Particles.js'
 import Player from './Player.js'
 import Renderer from './Renderer.js'
+import Ribbon from './Ribbon.js'
 import Sky from './Sky.js'
 import Terrains from './Terrains.js'
 import Water from './Water.js'
@@ -36,7 +39,10 @@ export default class View
         this.terrains = new Terrains()
         this.chunks = new Chunks()
         this.player = new Player()
+        this.ribbon = new Ribbon()
         this.grass = new Grass()
+        this.particles = new Particles()
+        this.audio = new Audio()
     }
 
     resize()
@@ -45,6 +51,7 @@ export default class View
         this.renderer.resize()
         this.sky.resize()
         this.terrains.resize()
+        this.particles.resize()
     }
 
     update()
@@ -54,7 +61,10 @@ export default class View
         this.terrains.update()
         this.chunks.update()
         this.player.update()
+        this.ribbon.update()
         this.grass.update()
+        this.particles.update()
+        this.audio.update()
         this.camera.update()
         this.renderer.update()
     }

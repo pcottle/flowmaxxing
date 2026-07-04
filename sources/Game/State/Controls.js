@@ -53,14 +53,6 @@ export default class Controls
                 name: 'boost'
             },
             {
-                codes: [ 'KeyP' ],
-                name: 'pointerLock'
-            },
-            {
-                codes: [ 'KeyV' ],
-                name: 'cameraMode'
-            },
-            {
                 codes: [ 'KeyB' ],
                 name: 'debug'
             },
@@ -95,8 +87,11 @@ export default class Controls
         // Event
         window.addEventListener('keydown', (event) =>
         {
+            if(event.repeat)
+                return
+
             const mapItem = this.keys.findPerCode(event.code)
-            
+
             if(mapItem)
             {
                 this.events.emit('keyDown', mapItem.name)

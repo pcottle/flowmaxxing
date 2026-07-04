@@ -9,6 +9,8 @@ export default function GrassMaterial()
         uniforms:
         {
             uTime: { value: null },
+            uWindTime: { value: null },
+            uWindStrength: { value: null },
             uGrassDistance: { value: null },
             uPlayerPosition: { value: null },
             uTerrainSize: { value: null },
@@ -22,6 +24,8 @@ export default function GrassMaterial()
             uTerrainDTexture: { value: null },
             uTerrainDOffset: { value: null },
             uNoiseTexture: { value: null },
+            uPlayerPushRadius: { value: null },
+            uPlayerPushStrength: { value: null },
             uFresnelOffset: { value: null },
             uFresnelScale: { value: null },
             uFresnelPower: { value: null },

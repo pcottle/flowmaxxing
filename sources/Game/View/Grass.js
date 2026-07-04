@@ -101,6 +101,8 @@ export default class Grass
         // this.material = new THREE.MeshBasicMaterial({ wireframe: true, color: 'green' })
         this.material = new GrassMaterial()
         this.material.uniforms.uTime.value = 0
+        this.material.uniforms.uWindTime.value = 0
+        this.material.uniforms.uWindStrength.value = 0
         this.material.uniforms.uGrassDistance.value = this.size
         this.material.uniforms.uPlayerPosition.value = new THREE.Vector3()
         this.material.uniforms.uTerrainSize.value = engineChunks.minSize
@@ -114,6 +116,8 @@ export default class Grass
         this.material.uniforms.uTerrainDTexture.value = null
         this.material.uniforms.uTerrainDOffset.value = new THREE.Vector2()
         this.material.uniforms.uNoiseTexture.value = this.noiseTexture
+        this.material.uniforms.uPlayerPushRadius.value = 1.7
+        this.material.uniforms.uPlayerPushStrength.value = 0.7
         this.material.uniforms.uFresnelOffset.value = 0
         this.material.uniforms.uFresnelScale.value = 0.5
         this.material.uniforms.uFresnelPower.value = 2
@@ -138,7 +142,11 @@ export default class Grass
         const engineChunks = this.state.chunks
         const sunState = this.state.sun
 
+        const windState = this.state.wind
+
         this.material.uniforms.uTime.value = this.time.elapsed
+        this.material.uniforms.uWindTime.value = windState.windTime
+        this.material.uniforms.uWindStrength.value = windState.strength
         this.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
         
         this.mesh.position.set(playerPosition[0], 0, playerPosition[2])
