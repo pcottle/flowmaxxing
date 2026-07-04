@@ -38,6 +38,11 @@ export default class Player
             this.stretch = 0.25
         })
 
+        playerState.events.on('dash', () =>
+        {
+            this.stretch = 0.18
+        })
+
         playerState.events.on('land', (impactSpeed) =>
         {
             this.stretch = - 0.3 * Math.min(impactSpeed / 12, 1)

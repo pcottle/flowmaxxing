@@ -19,7 +19,6 @@ export default class Player
 
         this.rotation = 0
         this.inputSpeed = 18
-        this.inputBoostSpeed = 30
         this.speed = 0
         this.horizontalSpeed = 0
 
@@ -28,6 +27,15 @@ export default class Player
         this.dampingRate = 1.5
         this.airControlRatio = 0.35
         this.rotationLerpRate = 7
+
+        // Dash
+        this.dashImpulse = 18
+        this.dashMaxSpeed = 42
+        this.dashSustainSpeed = 14
+        this.dashDuration = 0.16
+        this.dashCooldown = 0.55
+        this.dashTimer = 0
+        this.dashCooldownTimer = 0
 
         // Jump / gravity
         this.gravityRising = 28
@@ -66,7 +74,78 @@ export default class Player
                 this.velocity[1] *= this.jumpCutRatio
         })
 
+        this.controls.events.on('boostDown', () =>
+        {
+            if(this.camera.mode !== Camera.MODE_FLY)
+                this.dash()
+        })
+
         this.setDebug()
+    }
+
+    getInputRotation()
+    {
+        if(this.camera.mode === Camera.MODE_FLY)
+            return false
+
+        if(!this.controls.keys.down.forward && !this.controls.keys.down.backward && !this.controls.keys.down.strafeLeft && !this.controls.keys.down.strafeRight)
+            return false
+
+        let inputRotation = this.camera.thirdPerson.theta
+
+        if(this.controls.keys.down.forward)
+        {
+            if(this.controls.keys.down.strafeLeft)
+                inputRotation += Math.PI * 0.25
+            else if(this.controls.keys.down.strafeRight)
+                inputRotation -= Math.PI * 0.25
+        }
+        else if(this.controls.keys.down.backward)
+        {
+            if(this.controls.keys.down.strafeLeft)
+                inputRotation += Math.PI * 0.75
+            else if(this.controls.keys.down.strafeRight)
+                inputRotation -= Math.PI * 0.75
+            else
+                inputRotation -= Math.PI
+        }
+        else if(this.controls.keys.down.strafeLeft)
+        {
+            inputRotation += Math.PI * 0.5
+        }
+        else if(this.controls.keys.down.strafeRight)
+        {
+            inputRotation -= Math.PI * 0.5
+        }
+
+        return inputRotation
+    }
+
+    dash()
+    {
+        if(this.dashCooldownTimer > 0)
+            return
+
+        const inputRotation = this.getInputRotation()
+        const dashRotation = inputRotation === false ? this.rotation : inputRotation
+        const directionX = - Math.sin(dashRotation)
+        const directionZ = - Math.cos(dashRotation)
+
+        this.velocity[0] += directionX * this.dashImpulse
+        this.velocity[2] += directionZ * this.dashImpulse
+
+        const horizontalSpeed = Math.hypot(this.velocity[0], this.velocity[2])
+
+        if(horizontalSpeed > this.dashMaxSpeed)
+        {
+            const ratio = this.dashMaxSpeed / horizontalSpeed
+            this.velocity[0] *= ratio
+            this.velocity[2] *= ratio
+        }
+
+        this.dashTimer = this.dashDuration
+        this.dashCooldownTimer = this.dashCooldown
+        this.events.emit('dash')
     }
 
     jump()
@@ -94,46 +173,18 @@ export default class Player
     {
         const delta = this.time.delta
 
+        this.dashTimer = Math.max(0, this.dashTimer - delta)
+        this.dashCooldownTimer = Math.max(0, this.dashCooldownTimer - delta)
+
         /**
          * Horizontal velocity
          */
-        let hasInput = false
-        let inputRotation = 0
-
-        if(this.camera.mode !== Camera.MODE_FLY && (this.controls.keys.down.forward || this.controls.keys.down.backward || this.controls.keys.down.strafeLeft || this.controls.keys.down.strafeRight))
-        {
-            hasInput = true
-            inputRotation = this.camera.thirdPerson.theta
-
-            if(this.controls.keys.down.forward)
-            {
-                if(this.controls.keys.down.strafeLeft)
-                    inputRotation += Math.PI * 0.25
-                else if(this.controls.keys.down.strafeRight)
-                    inputRotation -= Math.PI * 0.25
-            }
-            else if(this.controls.keys.down.backward)
-            {
-                if(this.controls.keys.down.strafeLeft)
-                    inputRotation += Math.PI * 0.75
-                else if(this.controls.keys.down.strafeRight)
-                    inputRotation -= Math.PI * 0.75
-                else
-                    inputRotation -= Math.PI
-            }
-            else if(this.controls.keys.down.strafeLeft)
-            {
-                inputRotation += Math.PI * 0.5
-            }
-            else if(this.controls.keys.down.strafeRight)
-            {
-                inputRotation -= Math.PI * 0.5
-            }
-        }
+        const inputRotation = this.getInputRotation()
+        const hasInput = inputRotation !== false
 
         if(hasInput)
         {
-            const maxSpeed = this.controls.keys.down.boost ? this.inputBoostSpeed : this.inputSpeed
+            const maxSpeed = this.dashTimer > 0 ? this.inputSpeed + this.dashSustainSpeed : this.inputSpeed
             const targetX = - Math.sin(inputRotation) * maxSpeed
             const targetZ = - Math.cos(inputRotation) * maxSpeed
 
@@ -144,7 +195,8 @@ export default class Player
         }
         else
         {
-            const damping = Math.exp(- this.dampingRate * delta)
+            const dampingRate = this.dashTimer > 0 ? this.dampingRate * 0.25 : this.dampingRate
+            const damping = Math.exp(- dampingRate * delta)
             this.velocity[0] *= damping
             this.velocity[2] *= damping
         }
@@ -171,7 +223,7 @@ export default class Player
         const chunks = this.state.chunks
         const elevation = chunks.getElevationForPosition(this.position.current[0], this.position.current[2])
 
-        if(elevation === false)
+        if(elevation === false || !Number.isFinite(elevation))
         {
             // Chunk not ready yet, hold in place
             this.velocity[1] = 0
@@ -230,11 +282,15 @@ export default class Player
         const folder = debug.ui.getFolder('state/player')
 
         folder.add(this, 'inputSpeed').min(0).max(50).step(0.1)
-        folder.add(this, 'inputBoostSpeed').min(0).max(100).step(0.1)
         folder.add(this, 'accelerationRate').min(0).max(20).step(0.1)
         folder.add(this, 'dampingRate').min(0).max(10).step(0.05)
         folder.add(this, 'airControlRatio').min(0).max(1).step(0.01)
         folder.add(this, 'rotationLerpRate').min(0).max(30).step(0.1)
+        folder.add(this, 'dashImpulse').min(0).max(60).step(0.1)
+        folder.add(this, 'dashMaxSpeed').min(0).max(100).step(0.1)
+        folder.add(this, 'dashSustainSpeed').min(0).max(60).step(0.1)
+        folder.add(this, 'dashDuration').min(0).max(1).step(0.01)
+        folder.add(this, 'dashCooldown').min(0).max(3).step(0.01)
         folder.add(this, 'gravityRising').min(0).max(80).step(0.5)
         folder.add(this, 'gravityFalling').min(0).max(80).step(0.5)
         folder.add(this, 'glideGravityRatio').min(0).max(1).step(0.01)

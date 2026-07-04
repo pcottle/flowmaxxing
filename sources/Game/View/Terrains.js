@@ -51,6 +51,9 @@ export default class Terrains
         this.material.uniforms.uSunPosition.value = new THREE.Vector3(- 0.5, - 0.5, - 0.5)
         this.material.uniforms.uFogTexture.value = this.sky.customRender.texture
         this.material.uniforms.uGrassDistance.value = this.state.chunks.minSize
+        this.material.uniforms.uBeachEnd.value = this.state.terrains.beachEnd
+        this.material.uniforms.uMountainStart.value = this.state.terrains.mountainStart
+        this.material.uniforms.uMountainFull.value = this.state.terrains.mountainFull
 
         this.material.onBeforeRender = (renderer, scene, camera, geometry, mesh) =>
         {
@@ -112,9 +115,13 @@ export default class Terrains
         const playerState = this.state.player
         const playerPosition = playerState.position.current
         const sunState = this.state.sun
+        const terrainsState = this.state.terrains
 
         this.material.uniforms.uPlayerPosition.value.set(playerPosition[0], playerPosition[1], playerPosition[2])
         this.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
+        this.material.uniforms.uBeachEnd.value = terrainsState.beachEnd
+        this.material.uniforms.uMountainStart.value = terrainsState.mountainStart
+        this.material.uniforms.uMountainFull.value = terrainsState.mountainFull
     }
 
     resize()

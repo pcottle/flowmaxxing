@@ -8,7 +8,36 @@ const linearStep = (edgeMin, edgeMax, value) =>
     return Math.max(0.0, Math.min(1.0, (value - edgeMin) / (edgeMax - edgeMin)))
 }
 
-const getElevation = (x, y, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, elevationOffset, iterationsOffsets) =>
+const smoothStep = (edgeMin, edgeMax, value) =>
+{
+    const t = linearStep(edgeMin, edgeMax, value)
+    return t * t * (3 - 2 * t)
+}
+
+const mix = (a, b, t) =>
+{
+    return a * (1 - t) + b * t
+}
+
+const applyBiomeElevation = (elevation, x, y, beachEnd, mountainStart, mountainFull, iterationsOffsets) =>
+{
+    const safeBeachEnd = Math.max(beachEnd, 1.3)
+    const safeMountainFull = Math.max(mountainFull, mountainStart + 0.1)
+
+    const beachBlend = 1 - smoothStep(1.2, safeBeachEnd, elevation)
+    const beachNoise = elevationRandom.noise2D(x * 0.035 + iterationsOffsets[0][0], y * 0.035 + iterationsOffsets[0][1]) * 0.45
+    const beachElevation = 0.7 + elevation * 0.18 + beachNoise
+    elevation = mix(elevation, beachElevation, beachBlend)
+
+    const mountainBlend = smoothStep(mountainStart, safeMountainFull, elevation)
+    const ridgeNoise = Math.abs(elevationRandom.noise2D(x * 0.022 + iterationsOffsets[1][0], y * 0.022 + iterationsOffsets[1][1]))
+    const mountainElevation = elevation + Math.pow(ridgeNoise, 1.6) * 8 + Math.max(0, elevation - mountainStart) * 0.22
+    elevation = mix(elevation, mountainElevation, mountainBlend)
+
+    return elevation
+}
+
+const getElevation = (x, y, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, elevationOffset, iterationsOffsets, beachEnd, mountainStart, mountainFull) =>
 {
     let elevation = 0
     let frequency = baseFrequency
@@ -29,6 +58,7 @@ const getElevation = (x, y, lacunarity, persistence, iterations, baseFrequency, 
     elevation = Math.pow(Math.abs(elevation), power) * Math.sign(elevation)
     elevation *= baseAmplitude
     elevation += elevationOffset
+    elevation = applyBiomeElevation(elevation, x, y, beachEnd, mountainStart, mountainFull, iterationsOffsets)
 
     return elevation
 }
@@ -49,6 +79,9 @@ onmessage = function(event)
     const power = event.data.power
     const elevationOffset = event.data.elevationOffset
     const iterationsOffsets = event.data.iterationsOffsets
+    const beachEnd = event.data.beachEnd
+    const mountainStart = event.data.mountainStart
+    const mountainFull = event.data.mountainFull
     
     const segments = subdivisions + 1
     elevationRandom = new SimplexNoise(seed)
@@ -67,7 +100,7 @@ onmessage = function(event)
         for(let iZ = 0; iZ < segments + 1; iZ++)
         {
             const z = baseZ + (iZ / subdivisions - 0.5) * size
-            const elevation = getElevation(x, z, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, elevationOffset, iterationsOffsets)
+            const elevation = getElevation(x, z, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, elevationOffset, iterationsOffsets, beachEnd, mountainStart, mountainFull)
 
             const i = iZ * (segments + 1) + iX
             overflowElevations[i] = elevation

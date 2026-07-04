@@ -102,8 +102,9 @@ export default class Viewport
 
     resize()
     {
-        this.width = window.innerWidth
-        this.height = window.innerHeight
+        // Floor to 1 so a zero/degenerate measurement can never NaN the camera aspect or zero-size the draw buffer
+        this.width = window.innerWidth || 1
+        this.height = window.innerHeight || 1
         this.smallestSide = this.width < this.height ? this.width : this.height
         this.biggestSide = this.width > this.height ? this.width : this.height
         this.pixelRatio = window.devicePixelRatio

@@ -30,6 +30,9 @@ export default class Terrains
         this.baseAmplitude = 30
         this.power = 1
         this.elevationOffset = 1
+        this.beachEnd = 6.5
+        this.mountainStart = 12
+        this.mountainFull = 25
 
         this.segments = this.subdivisions + 1
         this.iterationsFormula = Terrains.ITERATIONS_FORMULA_POWERMIX
@@ -107,6 +110,9 @@ export default class Terrains
             baseAmplitude: this.baseAmplitude,
             power: this.power,
             elevationOffset: this.elevationOffset,
+            beachEnd: this.beachEnd,
+            mountainStart: this.mountainStart,
+            mountainFull: this.mountainFull,
             iterationsOffsets: this.iterationsOffsets
         })
 
@@ -148,6 +154,9 @@ export default class Terrains
                 baseAmplitude: this.baseAmplitude,
                 power: this.power,
                 elevationOffset: this.elevationOffset,
+                beachEnd: this.beachEnd,
+                mountainStart: this.mountainStart,
+                mountainFull: this.mountainFull,
                 iterationsOffsets: this.iterationsOffsets
             })
         }
@@ -214,6 +223,27 @@ export default class Terrains
             .min(- 10)
             .max(10)
             .step(1)
+            .onFinishChange(() => this.recreate())
+
+        folder
+            .add(this, 'beachEnd')
+            .min(1.3)
+            .max(20)
+            .step(0.1)
+            .onFinishChange(() => this.recreate())
+
+        folder
+            .add(this, 'mountainStart')
+            .min(0)
+            .max(60)
+            .step(0.1)
+            .onFinishChange(() => this.recreate())
+
+        folder
+            .add(this, 'mountainFull')
+            .min(0)
+            .max(80)
+            .step(0.1)
             .onFinishChange(() => this.recreate())
 
         folder

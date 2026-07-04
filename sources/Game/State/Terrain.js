@@ -37,7 +37,7 @@ export default class Terrain
         if(!this.ready)
         {
             // console.warn('terrain not ready')
-            return
+            return false
         }
 
         const subdivisions = this.terrains.subdivisions

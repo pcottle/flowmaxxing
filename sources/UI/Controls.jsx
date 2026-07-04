@@ -37,6 +37,7 @@ export default function Controls()
                 }
             />
             <Control label="jump / glide" keys={ <Key wide>Space</Key> } />
+            <Control label="dash" keys={ <Key wide>Shift</Key> } />
             <Control label="fullscreen" keys={ <Key>F</Key> } />
             <Control label="debug" keys={ <Key>B</Key> } />
         </div>

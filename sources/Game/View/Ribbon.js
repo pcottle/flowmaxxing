@@ -21,10 +21,14 @@ export default class Ribbon
         this.samplesCount = 40
         this.segmentLength = 0.18
         this.width = 0.35
+        this.panelGapRatio = 0
         this.anchorUpOffset = 1.4
         this.anchorBackOffset = 0.45
         this.flutterAmplitude = 0.035
         this.droop = 0.6
+        this.bodyRadius = 0.62
+        this.bodyBottomOffset = 0.05
+        this.bodyTopOffset = 1.75
 
         this.samples = []
         const playerState = this.state.player
@@ -41,6 +45,9 @@ export default class Ribbon
         this.direction = new THREE.Vector3()
         this.side = new THREE.Vector3(1, 0, 0)
         this.up = new THREE.Vector3(0, 1, 0)
+        this.back = new THREE.Vector3()
+        this.panelStart = new THREE.Vector3()
+        this.panelEnd = new THREE.Vector3()
 
         this.setGeometry()
         this.setMaterial()
@@ -50,15 +57,23 @@ export default class Ribbon
 
     setGeometry()
     {
-        const vertexCount = this.samplesCount * 2
+        const panelsCount = this.samplesCount - 1
+        const vertexCount = panelsCount * 4
         const positions = new Float32Array(vertexCount * 3)
         const indices = []
 
-        for(let i = 0; i < this.samplesCount - 1; i++)
+        for(let i = 0; i < panelsCount; i++)
         {
-            const a = i * 2
+            const a = i * 4
             indices.push(a, a + 1, a + 2)
             indices.push(a + 2, a + 1, a + 3)
+
+            if(i < panelsCount - 1)
+            {
+                const b = (i + 1) * 4
+                indices.push(a + 2, a + 3, b)
+                indices.push(b, a + 3, b + 1)
+            }
         }
 
         this.geometry = new THREE.BufferGeometry()
@@ -72,6 +87,39 @@ export default class Ribbon
     {
         this.material = new RibbonMaterial()
         this.material.uniforms.uColor.value.set('#c23b22')
+    }
+
+    keepSampleOutsidePlayer(sample, index)
+    {
+        const playerState = this.state.player
+        const playerX = playerState.position.current[0]
+        const playerY = playerState.position.current[1]
+        const playerZ = playerState.position.current[2]
+
+        if(sample.y < playerY + this.bodyBottomOffset || sample.y > playerY + this.bodyTopOffset)
+            return
+
+        const toSampleX = sample.x - playerX
+        const toSampleZ = sample.z - playerZ
+        const distance = Math.hypot(toSampleX, toSampleZ)
+        const tailRatio = index / (this.samplesCount - 1)
+        const radius = this.bodyRadius + this.width * 0.5 * (1 - tailRatio)
+
+        if(distance >= radius)
+            return
+
+        let pushX = toSampleX
+        let pushZ = toSampleZ
+
+        if(distance < 0.0001)
+        {
+            pushX = this.back.x
+            pushZ = this.back.z
+        }
+
+        const pushDistance = Math.hypot(pushX, pushZ) || 1
+        sample.x = playerX + pushX / pushDistance * radius
+        sample.z = playerZ + pushZ / pushDistance * radius
     }
 
     setMesh()
@@ -95,38 +143,46 @@ export default class Ribbon
             playerState.position.current[1] + this.anchorUpOffset,
             playerState.position.current[2] + Math.cos(playerState.rotation) * this.anchorBackOffset
         )
+        this.back.set(Math.sin(playerState.rotation), 0, Math.cos(playerState.rotation))
         this.samples[0].copy(this.anchor)
 
         // Chain follow with flutter and droop
         const flutter = this.flutterAmplitude * (0.3 + windState.strength)
 
-        for(let i = 1; i < this.samplesCount; i++)
+        for(let pass = 0; pass < 2; pass++)
         {
-            const sample = this.samples[i]
-            const previous = this.samples[i - 1]
-
-            sample.y -= this.droop * delta * (i / this.samplesCount)
-            sample.x += Math.sin(elapsed * 5 + i * 0.7) * flutter * delta * 20
-            sample.y += Math.sin(elapsed * 3.4 + i * 1.1) * flutter * delta * 12
-
-            this.direction.subVectors(sample, previous)
-            const distance = this.direction.length()
-
-            if(distance > this.segmentLength)
+            for(let i = 1; i < this.samplesCount; i++)
             {
-                this.direction.multiplyScalar(this.segmentLength / distance)
-                sample.copy(previous).add(this.direction)
+                const sample = this.samples[i]
+                const previous = this.samples[i - 1]
+
+                if(pass === 0)
+                {
+                    sample.y -= this.droop * delta * (i / this.samplesCount)
+                    sample.x += Math.sin(elapsed * 5 + i * 0.7) * flutter * delta * 20
+                    sample.y += Math.sin(elapsed * 3.4 + i * 1.1) * flutter * delta * 12
+                }
+
+                this.direction.subVectors(sample, previous)
+                const distance = this.direction.length()
+
+                if(distance > this.segmentLength)
+                {
+                    this.direction.multiplyScalar(this.segmentLength / distance)
+                    sample.copy(previous).add(this.direction)
+                }
+
+                this.keepSampleOutsidePlayer(sample, i)
             }
         }
 
-        // Rebuild the strip
-        for(let i = 0; i < this.samplesCount; i++)
+        // Rebuild the scarf as individual linked panels
+        for(let i = 0; i < this.samplesCount - 1; i++)
         {
             const sample = this.samples[i]
-            const next = this.samples[Math.min(i + 1, this.samplesCount - 1)]
-            const previous = this.samples[Math.max(i - 1, 0)]
+            const next = this.samples[i + 1]
 
-            this.direction.subVectors(next, previous)
+            this.direction.subVectors(next, sample)
 
             if(this.direction.lengthSq() > 0.000001)
             {
@@ -134,19 +190,39 @@ export default class Ribbon
                 this.side.normalize()
             }
 
-            const halfWidth = this.width * 0.5 * (1 - i / (this.samplesCount - 1))
+            const gap = Math.min(this.panelGapRatio, 0.45)
+            this.panelStart.copy(sample).lerp(next, gap * 0.5)
+            this.panelEnd.copy(sample).lerp(next, 1 - gap * 0.5)
+
+            const startRatio = i / (this.samplesCount - 1)
+            const endRatio = (i + 1) / (this.samplesCount - 1)
+            const startHalfWidth = this.width * 0.5 * (1 - startRatio)
+            const endHalfWidth = this.width * 0.5 * (1 - endRatio)
+            const vertexIndex = i * 4
 
             this.positionAttribute.setXYZ(
-                i * 2,
-                sample.x - this.side.x * halfWidth,
-                sample.y - this.side.y * halfWidth,
-                sample.z - this.side.z * halfWidth
+                vertexIndex,
+                this.panelStart.x - this.side.x * startHalfWidth,
+                this.panelStart.y - this.side.y * startHalfWidth,
+                this.panelStart.z - this.side.z * startHalfWidth
             )
             this.positionAttribute.setXYZ(
-                i * 2 + 1,
-                sample.x + this.side.x * halfWidth,
-                sample.y + this.side.y * halfWidth,
-                sample.z + this.side.z * halfWidth
+                vertexIndex + 1,
+                this.panelStart.x + this.side.x * startHalfWidth,
+                this.panelStart.y + this.side.y * startHalfWidth,
+                this.panelStart.z + this.side.z * startHalfWidth
+            )
+            this.positionAttribute.setXYZ(
+                vertexIndex + 2,
+                this.panelEnd.x - this.side.x * endHalfWidth,
+                this.panelEnd.y - this.side.y * endHalfWidth,
+                this.panelEnd.z - this.side.z * endHalfWidth
+            )
+            this.positionAttribute.setXYZ(
+                vertexIndex + 3,
+                this.panelEnd.x + this.side.x * endHalfWidth,
+                this.panelEnd.y + this.side.y * endHalfWidth,
+                this.panelEnd.z + this.side.z * endHalfWidth
             )
         }
 
@@ -164,7 +240,9 @@ export default class Ribbon
 
         folder.addColor(this.material.uniforms.uColor, 'value').name('uColor')
         folder.add(this, 'width').min(0).max(1).step(0.01)
+        folder.add(this, 'panelGapRatio').min(0).max(0.45).step(0.01)
         folder.add(this, 'flutterAmplitude').min(0).max(0.2).step(0.005)
         folder.add(this, 'droop').min(0).max(3).step(0.05)
+        folder.add(this, 'bodyRadius').min(0).max(2).step(0.01)
     }
 }
