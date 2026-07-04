@@ -52,28 +52,19 @@ export default class Ribbon
     {
         const vertexCount = this.samplesCount * 2
         const positions = new Float32Array(vertexCount * 3)
-        const alphas = new Float32Array(vertexCount)
         const indices = []
 
-        for(let i = 0; i < this.samplesCount; i++)
+        for(let i = 0; i < this.samplesCount - 1; i++)
         {
-            const alpha = 1 - i / (this.samplesCount - 1)
-            alphas[i * 2] = alpha
-            alphas[i * 2 + 1] = alpha
-
-            if(i < this.samplesCount - 1)
-            {
-                const a = i * 2
-                indices.push(a, a + 1, a + 2)
-                indices.push(a + 2, a + 1, a + 3)
-            }
+            const a = i * 2
+            indices.push(a, a + 1, a + 2)
+            indices.push(a + 2, a + 1, a + 3)
         }
 
         this.geometry = new THREE.BufferGeometry()
         this.positionAttribute = new THREE.Float32BufferAttribute(positions, 3)
         this.positionAttribute.setUsage(THREE.DynamicDrawUsage)
         this.geometry.setAttribute('position', this.positionAttribute)
-        this.geometry.setAttribute('aAlpha', new THREE.Float32BufferAttribute(alphas, 1))
         this.geometry.setIndex(indices)
     }
 
@@ -172,7 +163,6 @@ export default class Ribbon
         const folder = this.debug.ui.getFolder('view/ribbon')
 
         folder.addColor(this.material.uniforms.uColor, 'value').name('uColor')
-        folder.add(this.material.uniforms.uOpacity, 'value').min(0).max(1).step(0.01).name('uOpacity')
         folder.add(this, 'width').min(0).max(1).step(0.01)
         folder.add(this, 'flutterAmplitude').min(0).max(0.2).step(0.005)
         folder.add(this, 'droop').min(0).max(3).step(0.05)

@@ -24,11 +24,11 @@ export default class Terrains
         this.random = new seedrandom(this.seed)
         this.subdivisions = 40
         this.lacunarity = 2.05
-        this.persistence = 0.45
-        this.maxIterations = 6
-        this.baseFrequency = 0.003
-        this.baseAmplitude = 180
-        this.power = 2
+        this.persistence = 0.35
+        this.maxIterations = 4
+        this.baseFrequency = 0.0035
+        this.baseAmplitude = 30
+        this.power = 1
         this.elevationOffset = 1
 
         this.segments = this.subdivisions + 1

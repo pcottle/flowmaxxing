@@ -18,7 +18,7 @@ export default class Player
         this.events = new EventsEmitter()
 
         this.rotation = 0
-        this.inputSpeed = 10
+        this.inputSpeed = 18
         this.inputBoostSpeed = 30
         this.speed = 0
         this.horizontalSpeed = 0
@@ -34,6 +34,7 @@ export default class Player
         this.gravityFalling = 18
         this.glideGravityRatio = 0.5
         this.jumpVelocity = 10
+        this.jumpCutRatio = 0.45
         this.doubleJumpRatio = 0.85
         this.coyoteTime = 0.12
         this.grounded = true
@@ -59,6 +60,10 @@ export default class Player
         this.controls.events.on('jumpUp', () =>
         {
             this.jumpKeyReleased = true
+
+            // Variable jump height: releasing early cuts the ascent
+            if(!this.grounded && this.velocity[1] > 0)
+                this.velocity[1] *= this.jumpCutRatio
         })
 
         this.setDebug()
@@ -234,6 +239,7 @@ export default class Player
         folder.add(this, 'gravityFalling').min(0).max(80).step(0.5)
         folder.add(this, 'glideGravityRatio').min(0).max(1).step(0.01)
         folder.add(this, 'jumpVelocity').min(0).max(30).step(0.1)
+        folder.add(this, 'jumpCutRatio').min(0).max(1).step(0.01)
         folder.add(this, 'doubleJumpRatio').min(0).max(1).step(0.01)
         folder.add(this, 'coyoteTime').min(0).max(0.5).step(0.01)
     }
