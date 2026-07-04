@@ -188,7 +188,7 @@ export default class Player
             const targetX = - Math.sin(inputRotation) * maxSpeed
             const targetZ = - Math.cos(inputRotation) * maxSpeed
 
-            const control = this.grounded ? 1 : this.airControlRatio
+            const control = this.grounded || this.dashTimer > 0 ? 1 : this.airControlRatio
             const ratio = 1 - Math.exp(- this.accelerationRate * control * delta)
             this.velocity[0] += (targetX - this.velocity[0]) * ratio
             this.velocity[2] += (targetZ - this.velocity[2]) * ratio

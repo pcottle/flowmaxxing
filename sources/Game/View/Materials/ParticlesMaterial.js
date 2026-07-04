@@ -12,9 +12,10 @@ export default function ParticlesMaterial()
         {
             uTime: { value: 0 },
             uSizeScale: { value: null },
-            uColor: { value: new THREE.Color() },
+            uColor: { value: new THREE.Color('#78c8ff') },
+            uHighlightColor: { value: new THREE.Color('#ffffff') },
             uSunPosition: { value: new THREE.Vector3() },
-            uOpacity: { value: 0.55 }
+            uOpacity: { value: 0.82 }
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader

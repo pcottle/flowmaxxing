@@ -7,10 +7,13 @@ export default function RibbonMaterial()
 {
     const material = new THREE.ShaderMaterial({
         side: THREE.DoubleSide,
+        transparent: true,
+        depthWrite: false,
         uniforms:
         {
             uColor: { value: new THREE.Color() },
-            uSunPosition: { value: new THREE.Vector3() }
+            uSunPosition: { value: new THREE.Vector3() },
+            uOpacity: { value: 1 }
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader

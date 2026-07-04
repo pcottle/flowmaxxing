@@ -18,17 +18,22 @@ export default class Ribbon
         this.time = this.state.time
         this.scene = this.view.scene
 
-        this.samplesCount = 40
-        this.segmentLength = 0.18
+        this.samplesCount = 28
+        this.segmentLength = 0.16
         this.width = 0.35
+        this.tipWidthRatio = 0.42
         this.panelGapRatio = 0
         this.anchorUpOffset = 1.4
         this.anchorBackOffset = 0.45
-        this.flutterAmplitude = 0.035
+        this.flutterAmplitude = 0.018
         this.droop = 0.6
         this.bodyRadius = 0.62
         this.bodyBottomOffset = 0.05
         this.bodyTopOffset = 1.75
+        this.opacity = 1
+        this.idleOpacity = 0
+        this.fadeSpeedThreshold = 2.2
+        this.opacityLerpRate = 2.8
 
         this.samples = []
         const playerState = this.state.player
@@ -196,8 +201,8 @@ export default class Ribbon
 
             const startRatio = i / (this.samplesCount - 1)
             const endRatio = (i + 1) / (this.samplesCount - 1)
-            const startHalfWidth = this.width * 0.5 * (1 - startRatio)
-            const endHalfWidth = this.width * 0.5 * (1 - endRatio)
+            const startHalfWidth = this.width * 0.5 * (this.tipWidthRatio + (1 - this.tipWidthRatio) * (1 - startRatio))
+            const endHalfWidth = this.width * 0.5 * (this.tipWidthRatio + (1 - this.tipWidthRatio) * (1 - endRatio))
             const vertexIndex = i * 4
 
             this.positionAttribute.setXYZ(
@@ -228,7 +233,12 @@ export default class Ribbon
 
         this.positionAttribute.needsUpdate = true
 
+        const speedRatio = playerState.horizontalSpeed < 0.08 ? 0 : Math.min(playerState.horizontalSpeed / this.fadeSpeedThreshold, 1)
+        const targetOpacity = this.idleOpacity + (1 - this.idleOpacity) * speedRatio
+        this.opacity += (targetOpacity - this.opacity) * (1 - Math.exp(- this.opacityLerpRate * delta))
+
         this.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
+        this.material.uniforms.uOpacity.value = this.opacity
     }
 
     setDebug()
@@ -240,9 +250,13 @@ export default class Ribbon
 
         folder.addColor(this.material.uniforms.uColor, 'value').name('uColor')
         folder.add(this, 'width').min(0).max(1).step(0.01)
+        folder.add(this, 'tipWidthRatio').min(0).max(1).step(0.01)
         folder.add(this, 'panelGapRatio').min(0).max(0.45).step(0.01)
         folder.add(this, 'flutterAmplitude').min(0).max(0.2).step(0.005)
         folder.add(this, 'droop').min(0).max(3).step(0.05)
         folder.add(this, 'bodyRadius').min(0).max(2).step(0.01)
+        folder.add(this, 'idleOpacity').min(0).max(1).step(0.01)
+        folder.add(this, 'fadeSpeedThreshold').min(0.1).max(20).step(0.1)
+        folder.add(this, 'opacityLerpRate').min(0.1).max(20).step(0.1)
     }
 }
