@@ -59,36 +59,43 @@ export const buildPalm = () =>
         (x, y) => Math.pow(y / trunkHeight, 2) * 0.25
     ))
 
-    // Fronds: tapered drooping strips fanned around the crown
-    const frondCount = 7
-    const frondLength = 2.6
+    // Fronds in two layers: a long drooping outer skirt and a shorter,
+    // flatter inner crown rotated between the outer fronds, overlapping
+    // into a full canopy
+    const frondLayers = [
+        { count: 9, length: 2.6, width: 1.4, droop: 1.1, yOffset: - 0.1, angleOffset: 0 },
+        { count: 7, length: 1.7, width: 1.1, droop: 0.5, yOffset: 0.18, angleOffset: 0.38 }
+    ]
 
-    for(let f = 0; f < frondCount; f++)
+    for(const layer of frondLayers)
     {
-        const frond = new THREE.PlaneGeometry(frondLength, 0.5, 4, 1)
-        frond.rotateX(- Math.PI * 0.5)
-        frond.translate(frondLength * 0.5, 0, 0)
-
-        const positions = frond.attributes.position
-        for(let i = 0; i < positions.count; i++)
+        for(let f = 0; f < layer.count; f++)
         {
-            const t = positions.getX(i) / frondLength
-            positions.setY(i, positions.getY(i) - Math.pow(t, 1.7) * 1.1)
-            positions.setZ(i, positions.getZ(i) * (1 - t * 0.7))
+            const frond = new THREE.PlaneGeometry(layer.length, layer.width, 4, 1)
+            frond.rotateX(- Math.PI * 0.5)
+            frond.translate(layer.length * 0.5, 0, 0)
+
+            const positions = frond.attributes.position
+            for(let i = 0; i < positions.count; i++)
+            {
+                const t = positions.getX(i) / layer.length
+                positions.setY(i, positions.getY(i) - Math.pow(t, 1.7) * layer.droop)
+                positions.setZ(i, positions.getZ(i) * (1 - t * 0.7))
+            }
+
+            const withAttributes = addAttributes(
+                frond,
+                (x) => {
+                    const t = x / layer.length
+                    return [0.20 + t * 0.12, 0.38 + t * 0.14, 0.16 + t * 0.06]
+                },
+                (x) => 0.3 + (x / layer.length) * 0.7
+            )
+
+            withAttributes.rotateY((f / layer.count) * Math.PI * 2 + f * 0.35 + layer.angleOffset)
+            withAttributes.translate(lean, trunkHeight + layer.yOffset, 0)
+            parts.push(withAttributes)
         }
-
-        const withAttributes = addAttributes(
-            frond,
-            (x) => {
-                const t = x / frondLength
-                return [0.20 + t * 0.12, 0.38 + t * 0.14, 0.16 + t * 0.06]
-            },
-            (x) => 0.3 + (x / frondLength) * 0.7
-        )
-
-        withAttributes.rotateY((f / frondCount) * Math.PI * 2 + f * 0.35)
-        withAttributes.translate(lean, trunkHeight - 0.1, 0)
-        parts.push(withAttributes)
     }
 
     const merged = mergeBufferGeometries(parts)

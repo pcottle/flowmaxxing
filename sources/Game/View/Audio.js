@@ -101,6 +101,14 @@ export default class Audio
             this.melodyIndex = Math.min(this.melodyIndex + 1, this.chimeFrequencies.length - 1)
         })
 
+        playerState.events.on('bump', (bumpSpeed) =>
+        {
+            // Soft low thud: a downward noise sweep with a quiet low A
+            const intensity = Math.min(bumpSpeed / 20, 1)
+            this.playWhoosh({ startFrequency: 500, endFrequency: 150, duration: 0.18, volume: this.chimeVolume * (0.4 + intensity * 0.5), glint: false })
+            this.playChime(110, this.chimeVolume * 0.4 * (0.4 + intensity * 0.6), 0.6)
+        })
+
         playerState.events.on('launch', (launchVy) =>
         {
             // Soft low breath when a crest lets go of the player

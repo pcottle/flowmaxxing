@@ -66,6 +66,11 @@ export default class Player
         this.overspeedDecayRate = 0.8
         this.landingCarryRatio = 0.35
 
+        // Prop collisions (trees, rocks): simple horizontal circle push-out
+        this.bodyRadius = 0.6
+        this.bumpMinSpeed = 4
+        this.bumpCooldownTimer = 0
+
         // Tricks
         this.rollLift = 2
         this.diveGravityRatio = 2.2
@@ -374,6 +379,49 @@ export default class Player
         this.position.current[2] += this.velocity[2] * delta
 
         /**
+         * Prop collisions: push out of tree trunks and rocks, slide along
+         * them, and thud when hitting fast. Anything above a prop's height
+         * (glides, big launches) passes over
+         */
+        this.bumpCooldownTimer = Math.max(0, this.bumpCooldownTimer - delta)
+
+        this.state.propsColliders.forEach((collider) =>
+        {
+            if(this.position.current[1] > collider.y + collider.height)
+                return
+
+            const deltaX = this.position.current[0] - collider.x
+            const deltaZ = this.position.current[2] - collider.z
+            const minDistance = collider.radius + this.bodyRadius
+            const distanceSq = deltaX * deltaX + deltaZ * deltaZ
+
+            if(distanceSq >= minDistance * minDistance)
+                return
+
+            const distance = Math.sqrt(Math.max(distanceSq, 0.0001))
+            const normalX = deltaX / distance
+            const normalZ = deltaZ / distance
+
+            this.position.current[0] = collider.x + normalX * minDistance
+            this.position.current[2] = collider.z + normalZ * minDistance
+
+            // Remove the velocity component into the prop so the player slides
+            const into = this.velocity[0] * normalX + this.velocity[2] * normalZ
+
+            if(into < 0)
+            {
+                this.velocity[0] -= normalX * into
+                this.velocity[2] -= normalZ * into
+
+                if(- into > this.bumpMinSpeed && this.bumpCooldownTimer === 0)
+                {
+                    this.bumpCooldownTimer = 0.25
+                    this.events.emit('bump', - into)
+                }
+            }
+        })
+
+        /**
          * Facing (smoothed toward movement direction)
          */
         this.horizontalSpeed = Math.hypot(this.velocity[0], this.velocity[2])
@@ -575,6 +623,8 @@ export default class Player
         folder.add(this, 'skiMaxSpeed').min(10).max(100).step(1)
         folder.add(this, 'overspeedDecayRate').min(0).max(5).step(0.05)
         folder.add(this, 'landingCarryRatio').min(0).max(1).step(0.01)
+        folder.add(this, 'bodyRadius').min(0.1).max(2).step(0.05)
+        folder.add(this, 'bumpMinSpeed').min(0).max(20).step(0.5)
         folder.add(this, 'rollLift').min(0).max(10).step(0.1)
         folder.add(this, 'diveGravityRatio').min(1).max(5).step(0.05)
         folder.add(this, 'bounceRatio').min(0).max(1).step(0.01)

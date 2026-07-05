@@ -70,6 +70,7 @@ export default class PropsLayer
         const rowMax = Math.floor((playerPosition[2] + options.radius) / options.rowSize)
 
         let index = 0
+        const colliders = options.collision ? [] : null
 
         for(let row = rowMin; row <= rowMax && index < options.capacity; row++)
         {
@@ -120,6 +121,15 @@ export default class PropsLayer
                 this.dummy.updateMatrix()
                 this.mesh.setMatrixAt(index, this.dummy.matrix)
 
+                if(colliders)
+                {
+                    const collider = options.collision(this.dummy, r)
+                    collider.x = x
+                    collider.z = z
+                    collider.y = y
+                    colliders.push(collider)
+                }
+
                 if(options.tint)
                 {
                     options.tint(this.tintColor, r)
@@ -132,6 +142,9 @@ export default class PropsLayer
 
         this.mesh.count = index
         this.mesh.instanceMatrix.needsUpdate = true
+
+        if(colliders)
+            this.state.propsColliders.setGroup(options.name, colliders)
 
         if(this.mesh.instanceColor)
             this.mesh.instanceColor.needsUpdate = true

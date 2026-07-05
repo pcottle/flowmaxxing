@@ -68,6 +68,11 @@ export default class Player
         {
             this.stretch = 0.2
         })
+
+        playerState.events.on('bump', (bumpSpeed) =>
+        {
+            this.stretch = - 0.25 * Math.min(bumpSpeed / 20, 1)
+        })
     }
 
     setGroup()

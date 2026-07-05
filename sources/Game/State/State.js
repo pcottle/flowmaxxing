@@ -5,6 +5,7 @@ import DayCycle from './DayCycle.js'
 import Sun from './Sun.js'
 import Wind from './Wind.js'
 import WaveSets from './WaveSets.js'
+import PropsColliders from './PropsColliders.js'
 import Player from './Player.js'
 import Terrains from './Terrains.js'
 import Chunks from './Chunks.js'
@@ -32,6 +33,7 @@ export default class State
         this.sun = new Sun()
         this.wind = new Wind()
         this.waveSets = new WaveSets()
+        this.propsColliders = new PropsColliders()
         this.player = new Player()
         this.terrains = new Terrains()
         this.chunks = new Chunks()

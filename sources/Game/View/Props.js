@@ -47,6 +47,7 @@ export default class Props
                 const scale = 0.75 + r[6] * 0.5
                 dummy.scale.set(scale, scale, scale)
             },
+            collision: (dummy) => ({ radius: 0.4 * dummy.scale.x, height: 6 * dummy.scale.y }),
             tint: (color, r) => color.setScalar(0.9 + r[7] * 0.2)
         })
 
@@ -72,6 +73,8 @@ export default class Props
                 const scale = 0.6 + r[5] * 0.8
                 dummy.scale.set(scale, scale, scale)
             },
+            // Collide with the inner foliage, not the full tier spread
+            collision: (dummy) => ({ radius: 0.8 * dummy.scale.x, height: 4.5 * dummy.scale.y }),
             tint: (color, r) => color.setRGB(0.9 + r[6] * 0.2, 0.9 + r[7] * 0.2, 0.9 + r[6] * 0.15)
         })
 
@@ -102,6 +105,10 @@ export default class Props
                     dummy.rotation.set(0, r[4] * Math.PI * 2, 0)
                     dummy.scale.set(scaleX, scaleY, scaleZ)
                 },
+                collision: (dummy) => ({
+                    radius: 0.85 * (dummy.scale.x + dummy.scale.z) * 0.5,
+                    height: 1.1 * dummy.scale.y
+                }),
                 tint: (color, r) => color.setRGB(0.92 + r[5] * 0.16, 0.9 + r[6] * 0.16, 0.88 + r[7] * 0.16)
             }))
         }

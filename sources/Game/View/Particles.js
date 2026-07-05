@@ -77,6 +77,22 @@ export default class Particles
             })
         })
 
+        playerState.events.on('bump', (bumpSpeed) =>
+        {
+            // Puff back against the travel direction
+            const intensity = Math.min(bumpSpeed / 20, 1)
+            this.spawnWindMarks(5 + Math.round(intensity * 5), playerState.position.current, {
+                angle: this.getTravelAngle(playerState) + Math.PI,
+                spread: Math.PI * 0.7,
+                radius: 0.4,
+                speed: 2 + intensity * 2.5,
+                up: 1,
+                size: 10 + intensity * 5,
+                stretch: 1.5,
+                lifetime: 0.45
+            })
+        })
+
         playerState.events.on('bounce', (impactSpeed) =>
         {
             const intensity = Math.min(impactSpeed / 12, 1)

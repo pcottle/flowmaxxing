@@ -65,11 +65,25 @@ export default class Ribbon
         const panelsCount = this.samplesCount - 1
         const vertexCount = panelsCount * 4
         const positions = new Float32Array(vertexCount * 3)
+        const uvs = new Float32Array(vertexCount * 2)
         const indices = []
 
         for(let i = 0; i < panelsCount; i++)
         {
             const a = i * 4
+            const uv = i * 8
+            const startRatio = i / panelsCount
+            const endRatio = (i + 1) / panelsCount
+
+            uvs[uv] = 0
+            uvs[uv + 1] = startRatio
+            uvs[uv + 2] = 1
+            uvs[uv + 3] = startRatio
+            uvs[uv + 4] = 0
+            uvs[uv + 5] = endRatio
+            uvs[uv + 6] = 1
+            uvs[uv + 7] = endRatio
+
             indices.push(a, a + 1, a + 2)
             indices.push(a + 2, a + 1, a + 3)
 
@@ -85,6 +99,7 @@ export default class Ribbon
         this.positionAttribute = new THREE.Float32BufferAttribute(positions, 3)
         this.positionAttribute.setUsage(THREE.DynamicDrawUsage)
         this.geometry.setAttribute('position', this.positionAttribute)
+        this.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
         this.geometry.setIndex(indices)
     }
 
@@ -92,6 +107,7 @@ export default class Ribbon
     {
         this.material = new RibbonMaterial()
         this.material.uniforms.uColor.value.set('#c23b22')
+        this.material.uniforms.uPanelsCount.value = this.samplesCount - 1
     }
 
     keepSampleOutsidePlayer(sample, index)
@@ -246,6 +262,8 @@ export default class Ribbon
         const folder = this.debug.ui.getFolder('view/ribbon')
 
         folder.addColor(this.material.uniforms.uColor, 'value').name('uColor')
+        folder.addColor(this.material.uniforms.uTrimColor, 'value').name('uTrimColor')
+        folder.addColor(this.material.uniforms.uGlowColor, 'value').name('uGlowColor')
         folder.add(this, 'width').min(0).max(1).step(0.01)
         folder.add(this, 'tipWidthRatio').min(0).max(1).step(0.01)
         folder.add(this, 'panelGapRatio').min(0).max(0.45).step(0.01)

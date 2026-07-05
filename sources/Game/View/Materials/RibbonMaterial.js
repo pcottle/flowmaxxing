@@ -12,8 +12,11 @@ export default function RibbonMaterial()
         uniforms:
         {
             uColor: { value: new THREE.Color() },
+            uTrimColor: { value: new THREE.Color('#f6c85f') },
+            uGlowColor: { value: new THREE.Color('#ffdd8a') },
             uSunPosition: { value: new THREE.Vector3() },
-            uOpacity: { value: 1 }
+            uOpacity: { value: 1 },
+            uPanelsCount: { value: 1 }
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
