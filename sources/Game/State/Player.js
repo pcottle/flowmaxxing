@@ -517,7 +517,7 @@ export default class Player
                 this.diving = false
 
                 if(this.airTime > this.landEventMinAirTime)
-                    this.events.emit('land', impactSpeed)
+                    this.events.emit('splash', impactSpeed)
             }
             else if(this.position.current[1] <= elevation)
             {

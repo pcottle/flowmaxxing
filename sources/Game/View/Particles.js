@@ -77,6 +77,12 @@ export default class Particles
             })
         })
 
+        playerState.events.on('splash', (impactSpeed) =>
+        {
+            const intensity = Math.min(impactSpeed / 12, 1)
+            this.spawnSpray(8 + Math.round(intensity * 10), playerState.position.current)
+        })
+
         playerState.events.on('bump', (bumpSpeed) =>
         {
             // Puff back against the travel direction

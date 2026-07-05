@@ -18,6 +18,7 @@ export default class Player
         this.time = this.state.time
         this.scene = this.view.scene
 
+        this.baseHeight = 0.25
         this.bobAmplitude = 0.06
         this.bobFrequency = 1.8
         this.breathAmplitude = 0.015
@@ -72,6 +73,11 @@ export default class Player
         playerState.events.on('bump', (bumpSpeed) =>
         {
             this.stretch = - 0.25 * Math.min(bumpSpeed / 20, 1)
+        })
+
+        playerState.events.on('splash', (impactSpeed) =>
+        {
+            this.stretch = - 0.25 * Math.min(impactSpeed / 12, 1)
         })
     }
 
@@ -132,6 +138,7 @@ export default class Player
         playerFolder.add(this, 'rollDuration').min(0.1).max(2).step(0.05)
         playerFolder.add(this, 'diveLean').min(0).max(1.5).step(0.05)
         playerFolder.add(this, 'flowGlow').min(0).max(1).step(0.05)
+        playerFolder.add(this, 'baseHeight').min(0).max(2).step(0.05)
         playerFolder.add(this, 'bobAmplitude').min(0).max(0.3).step(0.005)
         playerFolder.add(this, 'bobFrequency').min(0).max(10).step(0.1)
         playerFolder.add(this, 'leanMax').min(0).max(Math.PI * 0.5).step(0.01)
@@ -162,8 +169,8 @@ export default class Player
         this.tilt.rotation.y = playerState.rotation
         this.helper.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
 
-        // Idle bob and breathing
-        this.tilt.position.y = this.bobAmplitude * Math.sin(this.time.elapsed * this.bobFrequency)
+        // Hover height plus idle bob and breathing
+        this.tilt.position.y = this.baseHeight + this.bobAmplitude * Math.sin(this.time.elapsed * this.bobFrequency)
 
         // Spin around own axis: slow idle spin blending into a fast drill at speed
         const speedNorm = Math.min(playerState.horizontalSpeed / 30, 1)

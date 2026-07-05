@@ -23,12 +23,25 @@ export default class Audio
         this.reverbVolume = 0.4
         this.glideVolume = 0.04
         this.flowPadVolume = 0.03
+        this.susVolume = 0.035
 
-        this.chimeFrequencies = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25, 784, 880] // A minor pentatonic, A3 to A5
+        // Two-octave A pentatonic scales: minor at night, major by day
+        this.scales = {}
+        this.scales.minor = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25, 784, 880]
+        this.scales.major = [220, 246.94, 277.18, 329.63, 369.99, 440, 493.88, 554.37, 659.25, 739.99, 880]
+        this.chimeFrequencies = this.scales.minor
         this.melodyIndex = 0
         this.melodyResetDelay = 2.5
         this.groundedTime = 0
         this.nextPluckTime = 0
+
+        // Echo answers: the world quietly replays the end of a good phrase
+        this.melodyBuffer = []
+        this.nextEchoTime = 0
+
+        // Wave plucks: one low note per wave break near the player
+        this.waveFoamPrev = []
+        this.nextWavePluckTime = 0
 
         // Browsers require a user gesture before audio can start
         const unlock = () =>
@@ -59,23 +72,60 @@ export default class Audio
         this.setWind()
         this.setPad()
         this.setGlide()
+        this.setSus()
 
         const playerState = this.state.player
 
         playerState.events.on('jump', (jumpCount) =>
         {
-            // Chained jumps climb the pentatonic ladder, double jumps skip a degree
+            // Chained jumps climb the pentatonic ladder, double jumps skip a
+            // degree and land as a dyad (note plus a fifth) for extra lift
             const frequency = this.chimeFrequencies[this.melodyIndex]
             this.playChime(frequency, this.chimeVolume)
+
+            if(jumpCount === 2)
+                this.playChime(frequency * 1.5, this.chimeVolume * 0.6)
+
+            this.rememberNote(frequency)
             this.melodyIndex = Math.min(this.melodyIndex + (jumpCount === 2 ? 2 : 1), this.chimeFrequencies.length - 1)
         })
 
         playerState.events.on('land', (impactSpeed) =>
         {
-            // Resolve the phrase to the root A below the last played note
+            // Resolve the phrase to the root below the last played note; a
+            // phrase that climbed high enough earns a two-note cadence
             const intensity = Math.min(impactSpeed / 12, 1)
-            const root = this.melodyIndex > 5 ? this.chimeFrequencies[5] : this.chimeFrequencies[0]
-            this.playChime(root, this.chimeVolume * 0.5 * (0.3 + intensity))
+            const volume = this.chimeVolume * 0.5 * (0.3 + intensity)
+            const rootIndex = this.melodyIndex > 5 ? 5 : 0
+
+            if(this.melodyIndex - rootIndex >= 4)
+            {
+                this.playChime(this.chimeFrequencies[rootIndex + 1], volume * 0.8)
+                this.playChime(this.chimeFrequencies[rootIndex], volume, 2.5, 0.11)
+            }
+            else
+            {
+                this.playChime(this.chimeFrequencies[rootIndex], volume)
+            }
+
+            // Echo answer: after a good run, the world quietly replays the
+            // last few notes of the phrase, drenched in reverb
+            if(playerState.flow > 0.5 && this.melodyBuffer.length >= 3 && this.time.elapsed > this.nextEchoTime)
+            {
+                this.nextEchoTime = this.time.elapsed + 10
+
+                const notes = this.melodyBuffer.slice(- 3)
+
+                for(let i = 0; i < notes.length; i++)
+                    this.playChime(notes[i], this.chimeVolume * 0.3, 3, 1.8 + i * 0.3)
+
+                this.melodyBuffer.length = 0
+            }
+        })
+
+        playerState.events.on('splash', (impactSpeed) =>
+        {
+            this.playSplash(Math.min(impactSpeed / 12, 1))
         })
 
         playerState.events.on('dash', () =>
@@ -94,6 +144,7 @@ export default class Audio
             {
                 const index = Math.min(this.melodyIndex + steps[i], this.chimeFrequencies.length - 1)
                 this.playChime(this.chimeFrequencies[index] * 2, this.chimeVolume * 0.6, 1.6, i * 0.11)
+                this.rememberNote(this.chimeFrequencies[index] * 2)
             }
 
             this.playWhoosh({ startFrequency: 700, endFrequency: 2600, duration: 0.45, volume: this.chimeVolume * 0.7 })
@@ -104,6 +155,7 @@ export default class Audio
             // Skimming bounces climb the ladder like quiet jumps
             const frequency = this.chimeFrequencies[this.melodyIndex]
             this.playChime(frequency, this.chimeVolume * 0.6, 1.6)
+            this.rememberNote(frequency)
             this.melodyIndex = Math.min(this.melodyIndex + 1, this.chimeFrequencies.length - 1)
         })
 
@@ -303,6 +355,35 @@ export default class Audio
         this.glide.lfo.start()
     }
 
+    setSus()
+    {
+        // Suspension voice: a soft D (the 4th of A) that fades in during long
+        // flights, resolved by the root chime on landing
+        this.sus = {}
+        this.sus.gain = this.context.createGain()
+        this.sus.gain.gain.value = 0
+        this.sus.gain.connect(this.masterGain)
+        this.sus.gain.connect(this.reverb.input)
+
+        for(const detune of [- 3, 3])
+        {
+            const oscillator = this.context.createOscillator()
+            oscillator.type = 'sine'
+            oscillator.frequency.value = 293.66 // D4
+            oscillator.detune.value = detune
+            oscillator.connect(this.sus.gain)
+            oscillator.start()
+        }
+    }
+
+    rememberNote(frequency)
+    {
+        this.melodyBuffer.push(frequency)
+
+        if(this.melodyBuffer.length > 4)
+            this.melodyBuffer.shift()
+    }
+
     playChime(frequency, volume, decay = 2.5, delay = 0)
     {
         if(!this.ready && !this.context)
@@ -324,6 +405,80 @@ export default class Audio
         gain.connect(this.reverb.input)
         oscillator.start(now)
         oscillator.stop(now + decay + 0.1)
+
+        // Flow shadow: chained tricks give every note a quiet octave-below
+        // double (skip the low thuds, they have no octave to gain)
+        if(this.state.player.flow > 0.6 && frequency >= 200)
+        {
+            const shadow = this.context.createOscillator()
+            shadow.type = 'sine'
+            shadow.frequency.value = frequency * 0.5
+
+            const shadowGain = this.context.createGain()
+            shadowGain.gain.setValueAtTime(0, now)
+            shadowGain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.02)
+            shadowGain.gain.exponentialRampToValueAtTime(0.0001, now + decay)
+
+            shadow.connect(shadowGain)
+            shadowGain.connect(this.masterGain)
+            shadowGain.connect(this.reverb.input)
+            shadow.start(now)
+            shadow.stop(now + decay + 0.1)
+        }
+    }
+
+    playSplash(intensity)
+    {
+        if(!this.ready)
+            return
+
+        const now = this.context.currentTime
+
+        // Watery plop: noise through a lowpass diving down...
+        const body = this.context.createBufferSource()
+        body.buffer = this.getNoiseBuffer()
+        body.loop = true
+
+        const bodyFilter = this.context.createBiquadFilter()
+        bodyFilter.type = 'lowpass'
+        bodyFilter.Q.value = 1
+        bodyFilter.frequency.setValueAtTime(900, now)
+        bodyFilter.frequency.exponentialRampToValueAtTime(250, now + 0.3)
+
+        const bodyGain = this.context.createGain()
+        bodyGain.gain.setValueAtTime(0, now)
+        bodyGain.gain.linearRampToValueAtTime(this.chimeVolume * (0.5 + intensity * 0.7), now + 0.02)
+        bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35)
+
+        body.connect(bodyFilter)
+        bodyFilter.connect(bodyGain)
+        bodyGain.connect(this.masterGain)
+        bodyGain.connect(this.reverb.input)
+        body.start(now)
+        body.stop(now + 0.4)
+
+        // ...with a short high sizzle for the spray
+        const spray = this.context.createBufferSource()
+        spray.buffer = this.getNoiseBuffer()
+        spray.loop = true
+
+        const sprayFilter = this.context.createBiquadFilter()
+        sprayFilter.type = 'bandpass'
+        sprayFilter.Q.value = 0.8
+        sprayFilter.frequency.setValueAtTime(2500, now)
+        sprayFilter.frequency.exponentialRampToValueAtTime(4000, now + 0.2)
+
+        const sprayGain = this.context.createGain()
+        sprayGain.gain.setValueAtTime(0, now)
+        sprayGain.gain.linearRampToValueAtTime(this.chimeVolume * 0.3 * (0.4 + intensity * 0.6), now + 0.03)
+        sprayGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25)
+
+        spray.connect(sprayFilter)
+        sprayFilter.connect(sprayGain)
+        sprayGain.connect(this.masterGain)
+        sprayGain.connect(this.reverb.input)
+        spray.start(now)
+        spray.stop(now + 0.3)
     }
 
     playWhoosh({ startFrequency = 400, endFrequency = 1800, duration = 0.45, volume = null, glint = true } = {})
@@ -399,8 +554,25 @@ export default class Audio
         this.pad.day.gain.gain.setTargetAtTime(dayness, now, 2)
         this.pad.night.gain.gain.setTargetAtTime(1 - dayness, now, 2)
 
+        // Chimes follow the light: major pentatonic by day, minor at night.
+        // Hysteresis avoids flapping at dawn/dusk; each crossing rings a
+        // little hour-chime arpeggio in the new scale
+        const targetScale = dayness > 0.6 ? this.scales.major : (dayness < 0.4 ? this.scales.minor : this.chimeFrequencies)
+
+        if(targetScale !== this.chimeFrequencies)
+        {
+            this.chimeFrequencies = targetScale
+
+            for(let i = 0; i < 3; i++)
+                this.playChime(targetScale[i * 2] * 2, this.chimeVolume * 0.5, 2, i * 0.15)
+        }
+
         // Flow adds a high harmonic voice as the player chains tricks
         this.pad.flow.gain.gain.setTargetAtTime(playerState.flow * this.flowPadVolume, now, 0.5)
+
+        // Long flights hang on a soft suspended 4th, resolved by the landing root
+        const suspended = !playerState.grounded && playerState.airTime > 2
+        this.sus.gain.gain.setTargetAtTime(suspended ? this.susVolume : 0, now, 0.6)
 
         // Reset the jump melody after resting on the ground for a while
         if(playerState.grounded)
@@ -408,11 +580,40 @@ export default class Audio
             this.groundedTime += this.time.delta
 
             if(this.groundedTime > this.melodyResetDelay)
+            {
                 this.melodyIndex = 0
+                this.melodyBuffer.length = 0
+            }
         }
         else
         {
             this.groundedTime = 0
+        }
+
+        // A low root pluck as each wave breaks nearby: the ocean keeps time
+        const waveSets = this.state.waveSets
+
+        if(waveSets)
+        {
+            for(let i = 0; i < waveSets.sets.length; i++)
+            {
+                const set = waveSets.sets[i]
+                const broke = set.foamIntensity > 0 && !(this.waveFoamPrev[i] > 0)
+                this.waveFoamPrev[i] = set.foamIntensity
+
+                if(!broke || this.time.elapsed < this.nextWavePluckTime)
+                    continue
+
+                const breakX = this.state.terrains.getShoreX(playerState.position.current[2]) + waveSets.DBreak
+                const distance = Math.abs(playerState.position.current[0] - breakX)
+                const attenuation = Math.max(0, 1 - distance / 80)
+
+                if(attenuation < 0.05)
+                    continue
+
+                this.nextWavePluckTime = this.time.elapsed + 2
+                this.playChime(110, this.chimeVolume * 0.5 * attenuation * (0.5 + set.baseAmplitude * 0.7), 3.5)
+            }
         }
 
         // Glide shimmer fades in while descending with jump held
@@ -465,6 +666,7 @@ export default class Audio
         folder.add(this, 'chimeVolume').min(0).max(0.3).step(0.01)
         folder.add(this, 'glideVolume').min(0).max(0.2).step(0.005)
         folder.add(this, 'flowPadVolume').min(0).max(0.15).step(0.005)
+        folder.add(this, 'susVolume').min(0).max(0.15).step(0.005)
         folder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
         {
             if(this.ready)
