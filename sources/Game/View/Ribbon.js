@@ -142,12 +142,9 @@ export default class Ribbon
         const delta = this.time.delta
         const elapsed = this.time.elapsed
 
-        // Anchor at the top back of the wisp
-        this.anchor.set(
-            playerState.position.current[0] + Math.sin(playerState.rotation) * this.anchorBackOffset,
-            playerState.position.current[1] + this.anchorUpOffset,
-            playerState.position.current[2] + Math.cos(playerState.rotation) * this.anchorBackOffset
-        )
+        // Anchor at the top back of the wisp, following the body's lean
+        // without inheriting the cone mesh's independent spin.
+        this.view.player.getRibbonAnchor(this.anchor, this.anchorUpOffset, this.anchorBackOffset)
         this.back.set(Math.sin(playerState.rotation), 0, Math.cos(playerState.rotation))
         this.samples[0].copy(this.anchor)
 

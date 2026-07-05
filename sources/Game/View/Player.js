@@ -31,6 +31,8 @@ export default class Player
         this.rollDuration = 0.45
         this.rollProgress = 1
         this.rollDirection = 1
+        this.rollAxis = new THREE.Vector3()
+        this.rollQuaternion = new THREE.Quaternion()
         this.diveLean = 0.5
         this.flowGlow = 0.4
 
@@ -96,6 +98,9 @@ export default class Player
         this.helper.geometry = geometry
         this.tilt.add(this.helper)
 
+        this.ribbonAnchor = new THREE.Object3D()
+        this.tilt.add(this.ribbonAnchor)
+
         // const arrow = new THREE.Mesh(
         //     new THREE.ConeGeometry(0.2, 0.2, 4),
         //     new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: false })
@@ -127,6 +132,13 @@ export default class Player
         playerFolder.add(this, 'leanMax').min(0).max(Math.PI * 0.5).step(0.01)
         playerFolder.add(this, 'idleSpinSpeed').min(0).max(3).step(0.05)
         playerFolder.add(this, 'speedSpinSpeed').min(0).max(30).step(0.5)
+    }
+
+    getRibbonAnchor(target, upOffset, backOffset)
+    {
+        this.ribbonAnchor.position.set(0, upOffset, backOffset)
+        this.ribbonAnchor.updateWorldMatrix(true, false)
+        return this.ribbonAnchor.getWorldPosition(target)
     }
 
 
@@ -163,17 +175,23 @@ export default class Player
         this.lean += (leanTarget - this.lean) * (1 - Math.exp(- this.leanLerpRate * this.time.delta))
         this.tilt.rotation.x = this.lean
 
-        // Barrel roll: one eased 360 around the travel axis, back to exactly 0
+        // Rebuild the full euler pose every frame: premultiplying the roll
+        // quaternion below writes back into the euler, so a stale z (or a
+        // partially-decomposed pose) would corrupt the next frame
+        this.tilt.rotation.z = 0
+
+        // Barrel roll: one eased corkscrew 360 around the world-space travel
+        // axis (composed over the euler pose — the body z axis points nearly
+        // up in the drill pose, so tilt.rotation.z would read as a yaw spin)
         if(this.rollProgress < 1)
         {
             this.rollProgress = Math.min(this.rollProgress + this.time.delta / this.rollDuration, 1)
             const t = this.rollProgress
             const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(- 2 * t + 2, 3) / 2
-            this.tilt.rotation.z = this.rollDirection * Math.PI * 2 * eased
-        }
-        else
-        {
-            this.tilt.rotation.z = 0
+
+            this.rollAxis.set(- Math.sin(playerState.rotation), 0, - Math.cos(playerState.rotation))
+            this.rollQuaternion.setFromAxisAngle(this.rollAxis, - this.rollDirection * Math.PI * 2 * eased)
+            this.tilt.quaternion.premultiply(this.rollQuaternion)
         }
 
         // Flow glow: the wisp brightens as flow builds
