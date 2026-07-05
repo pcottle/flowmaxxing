@@ -83,14 +83,20 @@ export default class Audio
             this.playWhoosh()
         })
 
-        playerState.events.on('roll', () =>
+        playerState.events.on('roll', (direction) =>
         {
-            // Quick two-note flick over a short bright whoosh
-            const first = this.chimeFrequencies[this.melodyIndex]
-            const second = this.chimeFrequencies[Math.min(this.melodyIndex + 2, this.chimeFrequencies.length - 1)]
-            this.playChime(first, this.chimeVolume * 0.7, 0.8)
-            setTimeout(() => { this.playChime(second, this.chimeVolume * 0.7, 0.8) }, 60)
-            this.playWhoosh({ startFrequency: 700, endFrequency: 2600, duration: 0.3, volume: this.chimeVolume * 0.6, glint: false })
+            // Sparkling arpeggio spinning with the corkscrew: ascending rolling
+            // right, descending rolling left, an octave above the jump ladder,
+            // scheduled on the audio clock so the run stays crisp
+            const steps = direction >= 0 ? [0, 2, 4] : [4, 2, 0]
+
+            for(let i = 0; i < steps.length; i++)
+            {
+                const index = Math.min(this.melodyIndex + steps[i], this.chimeFrequencies.length - 1)
+                this.playChime(this.chimeFrequencies[index] * 2, this.chimeVolume * 0.6, 1.6, i * 0.11)
+            }
+
+            this.playWhoosh({ startFrequency: 700, endFrequency: 2600, duration: 0.45, volume: this.chimeVolume * 0.7 })
         })
 
         playerState.events.on('bounce', () =>
@@ -297,12 +303,12 @@ export default class Audio
         this.glide.lfo.start()
     }
 
-    playChime(frequency, volume, decay = 2.5)
+    playChime(frequency, volume, decay = 2.5, delay = 0)
     {
         if(!this.ready && !this.context)
             return
 
-        const now = this.context.currentTime
+        const now = this.context.currentTime + delay
 
         const oscillator = this.context.createOscillator()
         oscillator.type = 'sine'

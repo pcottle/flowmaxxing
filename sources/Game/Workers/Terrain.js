@@ -65,15 +65,15 @@ const getElevation = (x, z, profile, lacunarity, persistence, iterations, baseFr
         elevation += tMount * Math.pow(r1 * 0.72 + r2 * 0.28, 2.0) * profile.ridgeAmplitude * profile.mountainScale
     }
 
-    // Scattered mounds across the beach and foothills — plateaus with steep sides to
-    // jump off (fixed octaves, starts past the waterline so the foam band stays clean)
+    // Scattered mounds across the beach and foothills — broad ramps with the same
+    // crest height (fixed octaves, starts past the waterline so the foam band stays clean)
     const moundMask = smoothStep(4, profile.beachWidth, inland) * (1 - tMount)
 
     if(moundMask > 0)
     {
         const m1 = elevationRandom.noise2D(x * corridor.moundFrequency + corridorOffsets[5][0], z * corridor.moundFrequency + corridorOffsets[5][1])
-        const m2 = elevationRandom.noise2D(x * corridor.moundFrequency * 2.3 + corridorOffsets[6][0], z * corridor.moundFrequency * 2.3 + corridorOffsets[6][1])
-        const mound = smoothStep(0.05, 0.6, m1 * 0.75 + m2 * 0.25)
+        const m2 = elevationRandom.noise2D(x * corridor.moundFrequency * 1.7 + corridorOffsets[6][0], z * corridor.moundFrequency * 1.7 + corridorOffsets[6][1])
+        const mound = smoothStep(- 0.25, 0.6, m1 * 0.85 + m2 * 0.15)
         elevation += mound * profile.moundHeight * moundMask
     }
 

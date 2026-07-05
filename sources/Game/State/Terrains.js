@@ -54,7 +54,7 @@ export default class Terrains
             ridgeAmplitude: 18,
             ridgeFrequency: 0.01,
             moundHeight: 3.5,
-            moundFrequency: 0.03,
+            moundFrequency: 0.018,
             oceanDetail: 0.06,
             beachDetail: 0.012,
             hillsDetail: 0.16,
