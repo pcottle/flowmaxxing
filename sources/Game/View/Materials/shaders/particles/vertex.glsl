@@ -10,12 +10,14 @@ attribute float aLifetime;
 attribute float aSize;
 attribute float aRotation;
 attribute float aStretch;
+attribute float aType;
 
 varying float vProgress;
 varying vec3 vColor;
 varying vec3 vHighlightColor;
 varying float vRotation;
 varying float vStretch;
+varying float vType;
 
 #include ../partials/getSunShade.glsl;
 #include ../partials/getSunShadeColor.glsl;
@@ -25,10 +27,13 @@ void main()
     float age = uTime - aSpawnTime;
     float progress = age / aLifetime;
 
-    // Damped outward drift with a slight upward float
+    // Damped outward drift with a slight upward float (wind streaks),
+    // or a ballistic arc under gravity (spray puffs)
     float aliveProgress = clamp(progress, 0.0, 1.0);
-    vec3 newPosition = position + aVelocity * age * (1.0 - aliveProgress * 0.45);
-    newPosition.y += age * 0.55;
+    vec3 driftPosition = position + aVelocity * age * (1.0 - aliveProgress * 0.45);
+    driftPosition.y += age * 0.55;
+    vec3 ballisticPosition = position + aVelocity * age + vec3(0.0, - 4.5, 0.0) * age * age;
+    vec3 newPosition = mix(driftPosition, ballisticPosition, aType);
 
     vec4 viewPosition = viewMatrix * modelMatrix * vec4(newPosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
@@ -50,4 +55,5 @@ void main()
     vProgress = progress;
     vRotation = length(projectedDirection) > 0.0001 ? atan(projectedDirection.y, projectedDirection.x) : aRotation;
     vStretch = aStretch;
+    vType = aType;
 }

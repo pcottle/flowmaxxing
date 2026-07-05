@@ -22,6 +22,10 @@ uniform float uFresnelOffset;
 uniform float uFresnelScale;
 uniform float uFresnelPower;
 uniform vec3 uSunPosition;
+uniform sampler2D uCorridorTexture;
+uniform float uCorridorZMin;
+uniform float uCorridorZRange;
+uniform vec3 uGrassColors[3];
 
 attribute vec2 center;
 // attribute float tipness;
@@ -117,9 +121,12 @@ void main()
     vec3 worldNormal = normalize(mat3(modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz) * normal);
     vec3 viewNormal = normalize(normalMatrix * normal);
 
-    // Grass color
-    vec3 uGrassDefaultColor = vec3(0.52, 0.65, 0.26);
-    vec3 uGrassShadedColor = vec3(0.52 / 1.3, 0.65 / 1.3, 0.26 / 1.3);
+    // Grass color, biome-blended from the shared corridor texture (G/B weights)
+    float corridorUv = clamp((modelPosition.z - uCorridorZMin) / uCorridorZRange, 0.0, 1.0);
+    vec4 corridorData = texture2D(uCorridorTexture, vec2(corridorUv, 0.5));
+    vec3 bw = vec3(1.0 - corridorData.g - corridorData.b, corridorData.g, corridorData.b);
+    vec3 uGrassDefaultColor = uGrassColors[0] * bw.x + uGrassColors[1] * bw.y + uGrassColors[2] * bw.z;
+    vec3 uGrassShadedColor = uGrassDefaultColor / 1.3;
     vec3 lowColor = mix(uGrassShadedColor, uGrassDefaultColor, 1.0 - scale); // Match the terrain
     vec3 color = mix(lowColor, uGrassDefaultColor, tipness);
 

@@ -20,9 +20,15 @@ export default class Audio
         this.windVolume = 0.12
         this.padVolume = 0.05
         this.chimeVolume = 0.08
+        this.reverbVolume = 0.4
+        this.glideVolume = 0.04
+        this.flowPadVolume = 0.03
 
-        this.chimeFrequencies = [220, 261.63, 293.66, 329.63, 392, 440] // A minor pentatonic
-        this.nextRandomChimeTime = 0
+        this.chimeFrequencies = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25, 784, 880] // A minor pentatonic, A3 to A5
+        this.melodyIndex = 0
+        this.melodyResetDelay = 2.5
+        this.groundedTime = 0
+        this.nextPluckTime = 0
 
         // Browsers require a user gesture before audio can start
         const unlock = () =>
@@ -49,40 +55,115 @@ export default class Audio
         this.masterGain.gain.value = this.muted ? 0 : this.masterVolume
         this.masterGain.connect(this.context.destination)
 
+        this.setReverb()
         this.setWind()
         this.setPad()
+        this.setGlide()
 
         const playerState = this.state.player
 
-        playerState.events.on('jump', () =>
+        playerState.events.on('jump', (jumpCount) =>
         {
-            const frequency = this.chimeFrequencies[Math.floor(Math.random() * this.chimeFrequencies.length)]
+            // Chained jumps climb the pentatonic ladder, double jumps skip a degree
+            const frequency = this.chimeFrequencies[this.melodyIndex]
             this.playChime(frequency, this.chimeVolume)
+            this.melodyIndex = Math.min(this.melodyIndex + (jumpCount === 2 ? 2 : 1), this.chimeFrequencies.length - 1)
         })
 
         playerState.events.on('land', (impactSpeed) =>
         {
+            // Resolve the phrase to the root A below the last played note
             const intensity = Math.min(impactSpeed / 12, 1)
-            this.playChime(this.chimeFrequencies[0], this.chimeVolume * 0.5 * (0.3 + intensity))
+            const root = this.melodyIndex > 5 ? this.chimeFrequencies[5] : this.chimeFrequencies[0]
+            this.playChime(root, this.chimeVolume * 0.5 * (0.3 + intensity))
+        })
+
+        playerState.events.on('dash', () =>
+        {
+            this.playWhoosh()
+        })
+
+        playerState.events.on('roll', () =>
+        {
+            // Quick two-note flick over a short bright whoosh
+            const first = this.chimeFrequencies[this.melodyIndex]
+            const second = this.chimeFrequencies[Math.min(this.melodyIndex + 2, this.chimeFrequencies.length - 1)]
+            this.playChime(first, this.chimeVolume * 0.7, 0.8)
+            setTimeout(() => { this.playChime(second, this.chimeVolume * 0.7, 0.8) }, 60)
+            this.playWhoosh({ startFrequency: 700, endFrequency: 2600, duration: 0.3, volume: this.chimeVolume * 0.6, glint: false })
+        })
+
+        playerState.events.on('bounce', () =>
+        {
+            // Skimming bounces climb the ladder like quiet jumps
+            const frequency = this.chimeFrequencies[this.melodyIndex]
+            this.playChime(frequency, this.chimeVolume * 0.6, 1.6)
+            this.melodyIndex = Math.min(this.melodyIndex + 1, this.chimeFrequencies.length - 1)
+        })
+
+        playerState.events.on('launch', (launchVy) =>
+        {
+            // Soft low breath when a crest lets go of the player
+            const intensity = Math.min(Math.max(launchVy, 0) / 14, 1)
+            this.playWhoosh({ startFrequency: 250, endFrequency: 900, duration: 0.5, volume: this.chimeVolume * (0.2 + intensity * 0.3), glint: false })
         })
 
         this.ready = true
     }
 
-    setWind()
+    getNoiseBuffer()
     {
-        // Looping noise buffer
+        if(this.noiseBuffer)
+            return this.noiseBuffer
+
         const duration = 4
         const sampleCount = this.context.sampleRate * duration
-        const buffer = this.context.createBuffer(1, sampleCount, this.context.sampleRate)
-        const data = buffer.getChannelData(0)
+        this.noiseBuffer = this.context.createBuffer(1, sampleCount, this.context.sampleRate)
+        const data = this.noiseBuffer.getChannelData(0)
 
         for(let i = 0; i < sampleCount; i++)
             data[i] = Math.random() * 2 - 1
 
+        return this.noiseBuffer
+    }
+
+    setReverb()
+    {
+        // Shimmer reverb bus: two parallel feedback delays with a lowpass in
+        // each loop so the repeats get darker as they fade
+        this.reverb = {}
+        this.reverb.input = this.context.createGain()
+        this.reverb.input.gain.value = 1
+
+        this.reverb.output = this.context.createGain()
+        this.reverb.output.gain.value = this.reverbVolume
+        this.reverb.output.connect(this.masterGain)
+
+        for(const delayTime of [0.31, 0.43])
+        {
+            const delay = this.context.createDelay(1)
+            delay.delayTime.value = delayTime
+
+            const feedback = this.context.createGain()
+            feedback.gain.value = 0.5
+
+            const filter = this.context.createBiquadFilter()
+            filter.type = 'lowpass'
+            filter.frequency.value = 2200
+
+            this.reverb.input.connect(delay)
+            delay.connect(filter)
+            filter.connect(feedback)
+            feedback.connect(delay)
+            filter.connect(this.reverb.output)
+        }
+    }
+
+    setWind()
+    {
         this.wind = {}
         this.wind.source = this.context.createBufferSource()
-        this.wind.source.buffer = buffer
+        this.wind.source.buffer = this.getNoiseBuffer()
         this.wind.source.loop = true
 
         this.wind.filter = this.context.createBiquadFilter()
@@ -149,9 +230,66 @@ export default class Audio
 
         this.pad.day = createVoicing([110, 164.81, 220]) // A2, E3, A3 — open fifth
         this.pad.night = createVoicing([110, 130.81, 164.81]) // A2, C3, E3 — minor
+
+        // Flow voice: a high harmonic pair that fades in as the player's flow
+        // builds (bypasses the pad lowpass so it stays airy)
+        this.pad.flow = {}
+        this.pad.flow.gain = this.context.createGain()
+        this.pad.flow.gain.gain.value = 0
+        this.pad.flow.gain.connect(this.masterGain)
+        this.pad.flow.gain.connect(this.reverb.input)
+
+        for(const frequency of [440, 659.25]) // A4, E5
+        {
+            for(const detune of [- 3, 3])
+            {
+                const oscillator = this.context.createOscillator()
+                oscillator.type = 'sine'
+                oscillator.frequency.value = frequency
+                oscillator.detune.value = detune
+                oscillator.connect(this.pad.flow.gain)
+                oscillator.start()
+            }
+        }
     }
 
-    playChime(frequency, volume)
+    setGlide()
+    {
+        // Airy sustained harmonics that fade in while gliding
+        this.glide = {}
+        this.glide.gain = this.context.createGain()
+        this.glide.gain.gain.value = 0
+        this.glide.gain.connect(this.masterGain)
+        this.glide.gain.connect(this.reverb.input)
+
+        this.glide.filter = this.context.createBiquadFilter()
+        this.glide.filter.type = 'lowpass'
+        this.glide.filter.frequency.value = 1200
+        this.glide.filter.connect(this.glide.gain)
+
+        for(const frequency of [880, 1318.51]) // A5, E6
+        {
+            for(const detune of [- 3, 3])
+            {
+                const oscillator = this.context.createOscillator()
+                oscillator.type = 'sine'
+                oscillator.frequency.value = frequency
+                oscillator.detune.value = detune
+                oscillator.connect(this.glide.filter)
+                oscillator.start()
+            }
+        }
+
+        this.glide.lfo = this.context.createOscillator()
+        this.glide.lfo.frequency.value = 0.15
+        this.glide.lfoGain = this.context.createGain()
+        this.glide.lfoGain.gain.value = 300
+        this.glide.lfo.connect(this.glide.lfoGain)
+        this.glide.lfoGain.connect(this.glide.filter.frequency)
+        this.glide.lfo.start()
+    }
+
+    playChime(frequency, volume, decay = 2.5)
     {
         if(!this.ready && !this.context)
             return
@@ -165,12 +303,64 @@ export default class Audio
         const gain = this.context.createGain()
         gain.gain.setValueAtTime(0, now)
         gain.gain.linearRampToValueAtTime(volume, now + 0.02)
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + decay)
 
         oscillator.connect(gain)
         gain.connect(this.masterGain)
+        gain.connect(this.reverb.input)
         oscillator.start(now)
-        oscillator.stop(now + 2.6)
+        oscillator.stop(now + decay + 0.1)
+    }
+
+    playWhoosh({ startFrequency = 400, endFrequency = 1800, duration = 0.45, volume = null, glint = true } = {})
+    {
+        if(!this.ready)
+            return
+
+        const now = this.context.currentTime
+        const peak = volume === null ? this.chimeVolume * 0.8 : volume
+
+        // Breathy noise sweep
+        const source = this.context.createBufferSource()
+        source.buffer = this.getNoiseBuffer()
+        source.loop = true
+
+        const filter = this.context.createBiquadFilter()
+        filter.type = 'bandpass'
+        filter.Q.value = 1.2
+        filter.frequency.setValueAtTime(startFrequency, now)
+        filter.frequency.exponentialRampToValueAtTime(endFrequency, now + duration * 0.66)
+
+        const gain = this.context.createGain()
+        gain.gain.setValueAtTime(0, now)
+        gain.gain.linearRampToValueAtTime(peak, now + 0.02)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+
+        source.connect(filter)
+        filter.connect(gain)
+        gain.connect(this.masterGain)
+        gain.connect(this.reverb.input)
+        source.start(now)
+        source.stop(now + duration + 0.05)
+
+        if(!glint)
+            return
+
+        // Harmonic glint: a soft fifth bending up into tune, mostly reverb
+        const glintOscillator = this.context.createOscillator()
+        glintOscillator.type = 'sine'
+        glintOscillator.frequency.setValueAtTime(622.25, now)
+        glintOscillator.frequency.linearRampToValueAtTime(659.25, now + 0.08) // E5
+
+        const glintGain = this.context.createGain()
+        glintGain.gain.setValueAtTime(0, now)
+        glintGain.gain.linearRampToValueAtTime(this.chimeVolume * 0.4, now + 0.03)
+        glintGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2)
+
+        glintOscillator.connect(glintGain)
+        glintGain.connect(this.reverb.input)
+        glintOscillator.start(now)
+        glintOscillator.stop(now + 1.3)
     }
 
     update()
@@ -183,9 +373,10 @@ export default class Audio
         const sunState = this.state.sun
         const now = this.context.currentTime
 
-        // Wind follows player speed and gusts
+        // Wind follows player speed and gusts, and roars while falling fast
         const speedNorm = Math.min(playerState.horizontalSpeed / 30, 1)
-        const windAmount = Math.min(0.3 + speedNorm * 0.7 + windState.strength * 0.5, 1.5)
+        const fallNorm = playerState.velocity[1] < 0 ? Math.min(- playerState.velocity[1] / 25, 1) : 0
+        const windAmount = Math.min(0.3 + speedNorm * 0.7 + windState.strength * 0.5 + fallNorm * 0.6, 1.5)
         this.wind.filter.frequency.setTargetAtTime(300 + windAmount * 1200, now, 0.3)
         this.wind.gain.gain.setTargetAtTime(this.windVolume * windAmount, now, 0.3)
 
@@ -194,12 +385,39 @@ export default class Audio
         this.pad.day.gain.gain.setTargetAtTime(dayness, now, 2)
         this.pad.night.gain.gain.setTargetAtTime(1 - dayness, now, 2)
 
-        // Sparse random chimes while moving
-        if(playerState.horizontalSpeed > 2 && this.time.elapsed > this.nextRandomChimeTime)
+        // Flow adds a high harmonic voice as the player chains tricks
+        this.pad.flow.gain.gain.setTargetAtTime(playerState.flow * this.flowPadVolume, now, 0.5)
+
+        // Reset the jump melody after resting on the ground for a while
+        if(playerState.grounded)
         {
-            this.nextRandomChimeTime = this.time.elapsed + 8 + Math.random() * 12
-            const frequency = this.chimeFrequencies[Math.floor(Math.random() * this.chimeFrequencies.length)]
-            this.playChime(frequency, this.chimeVolume * 0.6)
+            this.groundedTime += this.time.delta
+
+            if(this.groundedTime > this.melodyResetDelay)
+                this.melodyIndex = 0
+        }
+        else
+        {
+            this.groundedTime = 0
+        }
+
+        // Glide shimmer fades in while descending with jump held
+        const gliding = !playerState.grounded && playerState.velocity[1] < 0 && this.state.controls.keys.down.jump
+        const descentFactor = Math.min(- playerState.velocity[1] / 10, 1)
+        this.glide.gain.gain.setTargetAtTime(gliding ? this.glideVolume * (0.5 + descentFactor) : 0, now, 0.25)
+
+        if(gliding)
+            this.glide.filter.frequency.setTargetAtTime(1200 + descentFactor * 800, now, 0.25)
+
+        // Soft plucks while running, pitched by the terrain elevation so
+        // hills read as rising and falling phrases
+        if(playerState.grounded && playerState.horizontalSpeed > 4 && this.time.elapsed > this.nextPluckTime)
+        {
+            const speedRatio = Math.min(playerState.horizontalSpeed / 30, 1)
+            this.nextPluckTime = this.time.elapsed + 2.4 - speedRatio * 1.2
+
+            const scaleIndex = Math.abs(Math.floor(playerState.position.current[1] / 2.5)) % 6
+            this.playChime(this.chimeFrequencies[scaleIndex] * 2, this.chimeVolume * 0.35, 1.2)
         }
     }
 
@@ -231,5 +449,12 @@ export default class Audio
                 this.pad.gain.gain.setTargetAtTime(this.padVolume, this.context.currentTime, 0.1)
         })
         folder.add(this, 'chimeVolume').min(0).max(0.3).step(0.01)
+        folder.add(this, 'glideVolume').min(0).max(0.2).step(0.005)
+        folder.add(this, 'flowPadVolume').min(0).max(0.15).step(0.005)
+        folder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
+        {
+            if(this.ready)
+                this.reverb.output.gain.setTargetAtTime(this.reverbVolume, this.context.currentTime, 0.1)
+        })
     }
 }

@@ -18,7 +18,7 @@ export default class CameraThirdPerson
         this.quaternion = quat2.create()
         this.distance = 15
         this.phi = Math.PI * 0.45
-        this.theta = - Math.PI * 0.25
+        this.theta = 0 // face down the beach corridor (-Z)
         this.aboveOffset = 2
         this.phiLimits = { min: 0.1, max: Math.PI - 0.1 }
         this.springRate = 6

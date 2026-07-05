@@ -274,7 +274,7 @@ export default class Chunk
     destroy()
     {
         for(const [key, chunk] of this.children)
-            chunk.off('ready')
+            chunk.events.removeAllListeners('ready')
 
         if(this.splitted)
         {

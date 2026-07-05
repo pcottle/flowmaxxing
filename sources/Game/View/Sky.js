@@ -7,6 +7,7 @@ import Debug from '@/Debug/Debug.js'
 import SkyBackgroundMaterial from './Materials/SkyBackgroundMaterial.js'
 import SkySphereMaterial from './Materials/SkySphereMaterial.js'
 import StarsMaterial from './Materials/StarsMaterial.js'
+import CloudsMaterial from './Materials/CloudsMaterial.js'
 
 export default class Sky
 {
@@ -29,6 +30,7 @@ export default class Sky
         this.setCustomRender()
         this.setBackground()
         this.setSphere()
+        this.setClouds()
         this.setSun()
         this.setMoon()
         this.setShootingStar()
@@ -103,6 +105,19 @@ export default class Sky
         // this.sphere.material.wireframe = true
         this.sphere.mesh = new THREE.Mesh(this.sphere.geometry, this.sphere.material)
         this.customRender.scene.add(this.sphere.mesh)
+    }
+
+    setClouds()
+    {
+        // Rendered into the sky dome texture, so clouds tint the fog for free.
+        // Stars/sun/moon are main-scene billboards and are not occluded — accepted.
+        this.clouds = {}
+        this.clouds.material = new CloudsMaterial()
+        this.clouds.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(9.5, 64, 32),
+            this.clouds.material
+        )
+        this.customRender.scene.add(this.clouds.mesh)
     }
 
     setSun()
@@ -226,6 +241,14 @@ export default class Sky
         if(!this.debug.active)
             return
 
+        // Clouds
+        const cloudsFolder = this.debug.ui.getFolder('view/sky/clouds')
+
+        cloudsFolder.add(this.clouds.material.uniforms.uCloudScale, 'value').min(0.1).max(3).step(0.01).name('uCloudScale')
+        cloudsFolder.add(this.clouds.material.uniforms.uCoverage, 'value').min(0).max(1).step(0.01).name('uCoverage')
+        cloudsFolder.add(this.clouds.material.uniforms.uSoftness, 'value').min(0.02).max(1).step(0.01).name('uSoftness')
+        cloudsFolder.add(this.clouds.material.uniforms.uOpacity, 'value').min(0).max(1).step(0.01).name('uOpacity')
+
         // Sphere
         const sphereGeometryFolder = this.debug.ui.getFolder('view/sky/sphere/geometry')
 
@@ -271,7 +294,11 @@ export default class Sky
         // Sphere
         this.sphere.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
         this.sphere.material.uniforms.uDayCycleProgress.value = dayState.progress
-        
+
+        // Clouds
+        this.clouds.material.uniforms.uTime.value = this.state.time.elapsed
+        this.clouds.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
+
         // Sun
         this.sun.mesh.position.set(
             sunState.position.x * this.sun.distance,

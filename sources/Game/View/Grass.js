@@ -148,7 +148,19 @@ export default class Grass
         this.material.uniforms.uWindTime.value = windState.windTime
         this.material.uniforms.uWindStrength.value = windState.strength
         this.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
-        
+
+        // Shared corridor texture for biome-tinted blades (owned by Water)
+        const water = this.view.water
+        this.material.uniforms.uCorridorTexture.value = water.shoreTexture
+        this.material.uniforms.uCorridorZMin.value = water.shoreZMin
+        this.material.uniforms.uCorridorZRange.value = water.shoreWindow
+
+        for(let i = 0; i < 3; i++)
+        {
+            const colors = this.state.terrains.biomes[i].colors
+            this.material.uniforms.uGrassColors.value[i].setRGB(colors.grass[0], colors.grass[1], colors.grass[2])
+        }
+
         this.mesh.position.set(playerPosition[0], 0, playerPosition[2])
         // this.mesh.position.set(playerPosition[0], playerPosition[1], playerPosition[2])
         this.material.uniforms.uPlayerPosition.value.set(playerPosition[0], playerPosition[1], playerPosition[2])

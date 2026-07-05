@@ -122,6 +122,30 @@ export default class Terrains
         this.material.uniforms.uBeachEnd.value = terrainsState.beachEnd
         this.material.uniforms.uMountainStart.value = terrainsState.mountainStart
         this.material.uniforms.uMountainFull.value = terrainsState.mountainFull
+        this.material.uniforms.uTime.value = this.state.time.elapsed
+
+        // Shared corridor + wave textures (owned by Water, which updates before Terrains)
+        const water = this.view.water
+        this.material.uniforms.uCorridorTexture.value = water.shoreTexture
+        this.material.uniforms.uCorridorZMin.value = water.shoreZMin
+        this.material.uniforms.uCorridorZRange.value = water.shoreWindow
+        this.material.uniforms.uWaveTexture.value = water.waveTexture
+
+        // Wave-set uprush + wet memory (computed in State/WaveSets)
+        const waveSets = this.state.waveSets
+        this.material.uniforms.uUprush0.value = waveSets.sets[0].uprushE
+        this.material.uniforms.uUprush1.value = waveSets.sets[1].uprushE
+        this.material.uniforms.uWetLine.value = waveSets.wetLineE
+        this.material.uniforms.uWetFresh.value = waveSets.wetFresh
+
+        // Biome palettes: live-tunable, no recreate needed
+        for(let i = 0; i < 3; i++)
+        {
+            const colors = terrainsState.biomes[i].colors
+            this.material.uniforms.uSandColors.value[i].setRGB(colors.sand[0], colors.sand[1], colors.sand[2])
+            this.material.uniforms.uGrassColors.value[i].setRGB(colors.grass[0], colors.grass[1], colors.grass[2])
+            this.material.uniforms.uRockColors.value[i].setRGB(colors.rock[0], colors.rock[1], colors.rock[2])
+        }
     }
 
     resize()

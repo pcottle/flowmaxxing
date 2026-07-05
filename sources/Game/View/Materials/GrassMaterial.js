@@ -30,6 +30,10 @@ export default function GrassMaterial()
             uFresnelScale: { value: null },
             uFresnelPower: { value: null },
             uSunPosition: { value: null },
+            uCorridorTexture: { value: null },
+            uCorridorZMin: { value: 0 },
+            uCorridorZRange: { value: 1 },
+            uGrassColors: { value: [new THREE.Color(), new THREE.Color(), new THREE.Color()] },
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader

@@ -21,11 +21,18 @@ export default class Player
         this.bobAmplitude = 0.06
         this.bobFrequency = 1.8
         this.breathAmplitude = 0.015
-        this.leanMax = 0.25
+        this.leanMax = 1.4
         this.leanLerpRate = 8
         this.lean = 0
+        this.idleSpinSpeed = 0.6
+        this.speedSpinSpeed = 8
         this.stretch = 0
         this.stretchDecayRate = 8
+        this.rollDuration = 0.45
+        this.rollProgress = 1
+        this.rollDirection = 1
+        this.diveLean = 0.5
+        this.flowGlow = 0.4
 
         this.setGroup()
         this.setHelper()
@@ -47,6 +54,18 @@ export default class Player
         {
             this.stretch = - 0.3 * Math.min(impactSpeed / 12, 1)
         })
+
+        playerState.events.on('roll', (direction) =>
+        {
+            this.rollDirection = direction
+            this.rollProgress = 0
+            this.stretch = 0.18
+        })
+
+        playerState.events.on('bounce', () =>
+        {
+            this.stretch = 0.2
+        })
     }
 
     setGroup()
@@ -57,15 +76,25 @@ export default class Player
 
     setHelper()
     {
+        // Tilt node: faces movement direction and leans, so the idle spin
+        // on the mesh below never changes the lean direction
+        this.tilt = new THREE.Group()
+        this.tilt.rotation.reorder('YXZ')
+        this.group.add(this.tilt)
+
         this.helper = new THREE.Mesh()
         this.helper.material = new PlayerMaterial()
-        this.helper.material.uniforms.uColor.value = new THREE.Color('#fff8d6')
+        this.baseColor = new THREE.Color('#fff8d6')
+        this.helper.material.uniforms.uColor.value = this.baseColor.clone()
         this.helper.material.uniforms.uSunPosition.value = new THREE.Vector3(- 0.5, - 0.5, - 0.5)
 
-        this.helper.geometry = new THREE.CapsuleGeometry(0.5, 0.8, 3, 16),
-        this.helper.geometry.translate(0, 0.9, 0)
-        this.helper.rotation.reorder('YXZ')
-        this.group.add(this.helper)
+        // Faceted cone: non-indexed with recomputed normals for flat sides
+        let geometry = new THREE.ConeGeometry(0.7, 1.8, 8, 1)
+        geometry = geometry.toNonIndexed()
+        geometry.computeVertexNormals()
+        geometry.translate(0, 0.9, 0)
+        this.helper.geometry = geometry
+        this.tilt.add(this.helper)
 
         // const arrow = new THREE.Mesh(
         //     new THREE.ConeGeometry(0.2, 0.2, 4),
@@ -89,10 +118,15 @@ export default class Player
         // Sphere
         const playerFolder = this.debug.ui.getFolder('view/player')
 
-        playerFolder.addColor(this.helper.material.uniforms.uColor, 'value')
+        playerFolder.addColor(this, 'baseColor')
+        playerFolder.add(this, 'rollDuration').min(0.1).max(2).step(0.05)
+        playerFolder.add(this, 'diveLean').min(0).max(1.5).step(0.05)
+        playerFolder.add(this, 'flowGlow').min(0).max(1).step(0.05)
         playerFolder.add(this, 'bobAmplitude').min(0).max(0.3).step(0.005)
         playerFolder.add(this, 'bobFrequency').min(0).max(10).step(0.1)
-        playerFolder.add(this, 'leanMax').min(0).max(1).step(0.01)
+        playerFolder.add(this, 'leanMax').min(0).max(Math.PI * 0.5).step(0.01)
+        playerFolder.add(this, 'idleSpinSpeed').min(0).max(3).step(0.05)
+        playerFolder.add(this, 'speedSpinSpeed').min(0).max(30).step(0.5)
     }
 
 
@@ -108,22 +142,47 @@ export default class Player
         )
 
         // Helper
-        this.helper.rotation.y = playerState.rotation
+        this.tilt.rotation.y = playerState.rotation
         this.helper.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
 
         // Idle bob and breathing
-        this.helper.position.y = this.bobAmplitude * Math.sin(this.time.elapsed * this.bobFrequency)
+        this.tilt.position.y = this.bobAmplitude * Math.sin(this.time.elapsed * this.bobFrequency)
 
-        // Lean into movement
+        // Spin around own axis: slow idle spin blending into a fast drill at speed
         const speedNorm = Math.min(playerState.horizontalSpeed / 30, 1)
-        const leanTarget = - this.leanMax * speedNorm
+        const spinSpeed = this.idleSpinSpeed * (1 - speedNorm) + this.speedSpinSpeed * speedNorm
+        this.helper.rotation.y += spinSpeed * this.time.delta
+
+        // Lean into movement (eased so it stays mostly upright until fast),
+        // pitching further forward while dive bombing
+        let leanTarget = - this.leanMax * Math.pow(speedNorm, 1.5)
+
+        if(playerState.diving && !playerState.grounded)
+            leanTarget -= this.diveLean
+
         this.lean += (leanTarget - this.lean) * (1 - Math.exp(- this.leanLerpRate * this.time.delta))
-        this.helper.rotation.x = this.lean
+        this.tilt.rotation.x = this.lean
+
+        // Barrel roll: one eased 360 around the travel axis, back to exactly 0
+        if(this.rollProgress < 1)
+        {
+            this.rollProgress = Math.min(this.rollProgress + this.time.delta / this.rollDuration, 1)
+            const t = this.rollProgress
+            const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(- 2 * t + 2, 3) / 2
+            this.tilt.rotation.z = this.rollDirection * Math.PI * 2 * eased
+        }
+        else
+        {
+            this.tilt.rotation.z = 0
+        }
+
+        // Flow glow: the wisp brightens as flow builds
+        this.helper.material.uniforms.uColor.value.copy(this.baseColor).multiplyScalar(1 + playerState.flow * this.flowGlow)
 
         // Squash and stretch (decays back to rest)
         this.stretch *= Math.exp(- this.stretchDecayRate * this.time.delta)
         const breath = this.breathAmplitude * Math.sin(this.time.elapsed * 1.1)
-        this.helper.scale.set(
+        this.tilt.scale.set(
             1 - this.stretch * 0.5,
             1 + this.stretch + breath,
             1 - this.stretch * 0.5

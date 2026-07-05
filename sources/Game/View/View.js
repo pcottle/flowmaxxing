@@ -5,6 +5,7 @@ import Grass from './Grass.js'
 import Noises from './Noises.js'
 import Particles from './Particles.js'
 import Player from './Player.js'
+import Props from './Props.js'
 import Renderer from './Renderer.js'
 import Ribbon from './Ribbon.js'
 import Sky from './Sky.js'
@@ -41,6 +42,7 @@ export default class View
         this.player = new Player()
         this.ribbon = new Ribbon()
         this.grass = new Grass()
+        this.props = new Props()
         this.particles = new Particles()
         this.audio = new Audio()
     }
@@ -63,6 +65,7 @@ export default class View
         this.player.update()
         this.ribbon.update()
         this.grass.update()
+        this.props.update()
         this.particles.update()
         this.audio.update()
         this.camera.update()

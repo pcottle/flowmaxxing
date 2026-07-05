@@ -1,4 +1,5 @@
 import SimplexNoise from './SimplexNoise.js'
+import { getCorridorProfile } from './CorridorProfile.js'
 import { vec3 } from 'gl-matrix'
 
 let elevationRandom = null
@@ -19,46 +20,104 @@ const mix = (a, b, t) =>
     return a * (1 - t) + b * t
 }
 
-const applyBiomeElevation = (elevation, x, y, beachEnd, mountainStart, mountainFull, iterationsOffsets) =>
+const getElevation = (x, z, profile, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, iterationsOffsets, corridor, corridorOffsets) =>
 {
-    const safeBeachEnd = Math.max(beachEnd, 1.3)
-    const safeMountainFull = Math.max(mountainFull, mountainStart + 0.1)
-
-    const beachBlend = 1 - smoothStep(1.2, safeBeachEnd, elevation)
-    const beachNoise = elevationRandom.noise2D(x * 0.035 + iterationsOffsets[0][0], y * 0.035 + iterationsOffsets[0][1]) * 0.45
-    const beachElevation = 0.7 + elevation * 0.18 + beachNoise
-    elevation = mix(elevation, beachElevation, beachBlend)
-
-    const mountainBlend = smoothStep(mountainStart, safeMountainFull, elevation)
-    const ridgeNoise = Math.abs(elevationRandom.noise2D(x * 0.022 + iterationsOffsets[1][0], y * 0.022 + iterationsOffsets[1][1]))
-    const mountainElevation = elevation + Math.pow(ridgeNoise, 1.6) * 8 + Math.max(0, elevation - mountainStart) * 0.22
-    elevation = mix(elevation, mountainElevation, mountainBlend)
-
-    return elevation
-}
-
-const getElevation = (x, y, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, elevationOffset, iterationsOffsets, beachEnd, mountainStart, mountainFull) =>
-{
-    let elevation = 0
+    // FBM detail (LOD-dependent octaves, amplitude scaled per zone below)
+    let detail = 0
     let frequency = baseFrequency
     let amplitude = 1
     let normalisation = 0
 
     for(let i = 0; i < iterations; i++)
     {
-        const noise = elevationRandom.noise2D(x * frequency + iterationsOffsets[i][0], y * frequency + iterationsOffsets[i][1])
-        elevation += noise * amplitude
+        const noise = elevationRandom.noise2D(x * frequency + iterationsOffsets[i][0], z * frequency + iterationsOffsets[i][1])
+        detail += noise * amplitude
 
         normalisation += amplitude
         amplitude *= persistence
         frequency *= lacunarity
     }
 
-    elevation /= normalisation
-    elevation = Math.pow(Math.abs(elevation), power) * Math.sign(elevation)
-    elevation *= baseAmplitude
-    elevation += elevationOffset
-    elevation = applyBiomeElevation(elevation, x, y, beachEnd, mountainStart, mountainFull, iterationsOffsets)
+    detail /= normalisation
+    detail = Math.pow(Math.abs(detail), power) * Math.sign(detail)
+
+    // Cross-shore zones, measured from the meandering shoreline (sea level = 0).
+    // Zone widths/heights come from the per-row profile (biome-blended, cove-modulated)
+    const inland = profile.shoreX - x   // + = toward mountains (west)
+    const seaward = - inland            // + = toward ocean (east)
+
+    const tOcean = smoothStep(0, corridor.oceanRampWidth, seaward)
+    const tDry = smoothStep(- 6, profile.beachWidth, inland)
+    const tHills = smoothStep(profile.beachWidth, profile.beachWidth + profile.hillsWidth, inland)
+    const tMount = smoothStep(profile.mountainStart, profile.mountainFull, inland)
+
+    let elevation =
+        - profile.oceanDepth * tOcean
+        + profile.beachTopHeight * tDry
+        + profile.hillsHeight * tHills
+        + profile.mountainHeight * profile.mountainScale * Math.pow(tMount, 1.6)
+
+    // Ridged mountain relief (term and derivative are 0 at tMount = 0 → C1 continuous)
+    if(tMount > 0)
+    {
+        const r1 = 1 - Math.abs(elevationRandom.noise2D(x * corridor.ridgeFrequency + corridorOffsets[3][0], z * corridor.ridgeFrequency + corridorOffsets[3][1]))
+        const r2 = 1 - Math.abs(elevationRandom.noise2D(x * corridor.ridgeFrequency * 2.6 + corridorOffsets[4][0], z * corridor.ridgeFrequency * 2.6 + corridorOffsets[4][1]))
+        elevation += tMount * Math.pow(r1 * 0.72 + r2 * 0.28, 2.0) * profile.ridgeAmplitude * profile.mountainScale
+    }
+
+    // Scattered mounds across the beach and foothills — plateaus with steep sides to
+    // jump off (fixed octaves, starts past the waterline so the foam band stays clean)
+    const moundMask = smoothStep(4, profile.beachWidth, inland) * (1 - tMount)
+
+    if(moundMask > 0)
+    {
+        const m1 = elevationRandom.noise2D(x * corridor.moundFrequency + corridorOffsets[5][0], z * corridor.moundFrequency + corridorOffsets[5][1])
+        const m2 = elevationRandom.noise2D(x * corridor.moundFrequency * 2.3 + corridorOffsets[6][0], z * corridor.moundFrequency * 2.3 + corridorOffsets[6][1])
+        const mound = smoothStep(0.05, 0.6, m1 * 0.75 + m2 * 0.25)
+        elevation += mound * profile.moundHeight * moundMask
+    }
+
+    // Terraced cliffs: jittered quantization of the structural elevation, applied
+    // BEFORE the LOD-varying detail noise so terrace band positions never move
+    // between LODs. C1: smoothStep derivative is 0 at both ends of each riser.
+    const terraceBlend = profile.terraceStrength * tMount
+
+    if(terraceBlend > 0)
+    {
+        const jitter = elevationRandom.noise2D(x * corridor.terraceJitterFrequency + corridorOffsets[11][0], z * corridor.terraceJitterFrequency + corridorOffsets[11][1]) * corridor.terraceJitter
+        const e = elevation + jitter
+        const band = Math.floor(e / corridor.terraceStep)
+        const r = e / corridor.terraceStep - band
+        const shaped = (band + smoothStep(1 - corridor.terraceLedge, 1, r)) * corridor.terraceStep - jitter
+        elevation = mix(elevation, shaped, terraceBlend)
+    }
+
+    // Offshore sea stacks: rare steep spires rising from the seabed (fixed octaves)
+    const stackBand = smoothStep(corridor.stackBandNear, corridor.stackBandNear + 20, seaward)
+        * (1 - smoothStep(corridor.stackBandFar - 40, corridor.stackBandFar, seaward))
+
+    if(stackBand > 0.001)
+    {
+        const s = elevationRandom.noise2D(x * corridor.stackFrequency + corridorOffsets[12][0], z * corridor.stackFrequency + corridorOffsets[12][1]) * 0.7
+            + elevationRandom.noise2D(x * corridor.stackFrequency * 2.4 + corridorOffsets[13][0], z * corridor.stackFrequency * 2.4 + corridorOffsets[13][1]) * 0.3
+        const core = Math.pow(smoothStep(corridor.stackThreshold, corridor.stackThreshold + corridor.stackSharpness, s), corridor.stackPower)
+
+        if(core > 0)
+        {
+            const top = corridor.stackHeight + corridor.stackHeightVariation * elevationRandom.noise2D(x * 0.005 + corridorOffsets[14][0], z * 0.005 + corridorOffsets[14][1])
+            elevation = mix(elevation, top, core * stackBand)
+        }
+    }
+
+    // Zone-scaled detail LAST (the only LOD-varying term): smooth beach, rolling
+    // seabed and hills, rough mountains — suppressed where terraces are strong so
+    // the 7m steps stay readable
+    const detailAmplitude = mix(
+        mix(corridor.oceanDetail, corridor.beachDetail, smoothStep(- corridor.oceanRampWidth * 0.5, 0, inland)),
+        mix(profile.hillsDetail, 1 - terraceBlend * corridor.terraceDetailSuppress, tMount),
+        tHills
+    ) * baseAmplitude
+    elevation += detail * detailAmplitude
 
     return elevation
 }
@@ -77,22 +136,32 @@ onmessage = function(event)
     const baseFrequency = event.data.baseFrequency
     const baseAmplitude = event.data.baseAmplitude
     const power = event.data.power
-    const elevationOffset = event.data.elevationOffset
     const iterationsOffsets = event.data.iterationsOffsets
-    const beachEnd = event.data.beachEnd
-    const mountainStart = event.data.mountainStart
-    const mountainFull = event.data.mountainFull
-    
+    const corridor = event.data.corridor
+    const corridorOffsets = event.data.corridorOffsets
+    const biomes = event.data.biomes
+
     const segments = subdivisions + 1
     elevationRandom = new SimplexNoise(seed)
     const grassRandom = new SimplexNoise(seed)
+
+    /**
+     * Corridor profile (depends on z only — cache one per row)
+     */
+    const profiles = new Array(segments + 1)
+
+    for(let iZ = 0; iZ < segments + 1; iZ++)
+    {
+        const z = baseZ + (iZ / subdivisions - 0.5) * size
+        profiles[iZ] = getCorridorProfile(elevationRandom, z, corridor, corridorOffsets, biomes)
+    }
 
     /**
      * Elevation
      */
     const overflowElevations = new Float32Array((segments + 1) * (segments + 1)) // Bigger to calculate normals more accurately
     const elevations = new Float32Array(segments * segments)
-    
+
     for(let iX = 0; iX < segments + 1; iX++)
     {
         const x = baseX + (iX / subdivisions - 0.5) * size
@@ -100,7 +169,7 @@ onmessage = function(event)
         for(let iZ = 0; iZ < segments + 1; iZ++)
         {
             const z = baseZ + (iZ / subdivisions - 0.5) * size
-            const elevation = getElevation(x, z, lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, elevationOffset, iterationsOffsets, beachEnd, mountainStart, mountainFull)
+            const elevation = getElevation(x, z, profiles[iZ], lacunarity, persistence, iterations, baseFrequency, baseAmplitude, power, iterationsOffsets, corridor, corridorOffsets)
 
             const i = iZ * (segments + 1) + iX
             overflowElevations[i] = elevation
@@ -436,10 +505,14 @@ onmessage = function(event)
                 const grassFrequency = 0.05
                 let grassNoise = grassRandom.noise2D(position[0] * grassFrequency + iterationsOffsets[0][0], position[2] * grassFrequency + iterationsOffsets[0][0])
                 grassNoise = linearStep(- 0.5, 0, grassNoise);
-                
+
                 const grassUpward = linearStep(0.9, 1, upward);
-                
-                grass = grassNoise * grassUpward
+
+                // Keep grass off the beach sand: only inland of the dry sand band
+                const inland = profiles[iZ].shoreX - position[0]
+                const zoneMask = smoothStep(profiles[iZ].beachWidth + 4, profiles[iZ].beachWidth + 24, inland)
+
+                grass = grassNoise * grassUpward * zoneMask
             }
 
             // Final texture
