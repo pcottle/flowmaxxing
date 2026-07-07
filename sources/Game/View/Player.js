@@ -18,7 +18,7 @@ export default class Player
         this.time = this.state.time
         this.scene = this.view.scene
 
-        this.baseHeight = 0.25
+        this.baseHeight = 0.5
         this.bobAmplitude = 0.06
         this.bobFrequency = 1.8
         this.breathAmplitude = 0.015
