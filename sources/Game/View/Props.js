@@ -95,6 +95,33 @@ export default class Props
             tint: (color, r) => color.setRGB(0.9 + r[6] * 0.2, 0.9 + r[7] * 0.2, 0.9 + r[6] * 0.15)
         })
 
+        this.highlandConifers = new PropsLayer({
+            name: 'highlandConifer',
+            geometry: buildConifer({ snow: true }),
+            material: this.material,
+            outlineMaterial: this.outlineMaterials.conifer,
+            capacity: 384,
+            rowSize: 12,
+            perRow: 3,
+            probability: 0.45,
+            inlandMin: 330,
+            inlandMax: 560,
+            minElevation: 24,
+            maxElevation: 72,
+            slopeMax: 0.9,
+            radius: 192,
+            biomeDensity: (weights) => 1 - weights[1] * 0.35 - weights[2] * 0.5,
+            composeTransform: (dummy, r, x, y, z) =>
+            {
+                dummy.position.set(x, y - 0.08, z)
+                dummy.rotation.set(0, r[4] * Math.PI * 2, 0)
+                const scale = 0.35 + r[5] * 0.45
+                dummy.scale.set(scale, scale * (0.75 + r[6] * 0.35), scale)
+            },
+            collision: (dummy) => ({ radius: 0.7 * dummy.scale.x, height: 4.2 * dummy.scale.y }),
+            tint: (color, r) => color.setRGB(0.86 + r[6] * 0.1, 0.92 + r[7] * 0.07, 0.96 + r[6] * 0.04)
+        })
+
         this.boulders = []
 
         for(let variant = 0; variant < 2; variant++)
@@ -131,7 +158,39 @@ export default class Props
             }))
         }
 
-        this.layers = [this.palms, this.conifers, ...this.boulders]
+        this.highlandBoulders = new PropsLayer({
+            name: 'highlandBoulder',
+            geometry: buildBoulder(this.game.seed, 2),
+            material: this.material,
+            outlineMaterial: this.outlineMaterials.boulder,
+            capacity: 96,
+            rowSize: 18,
+            perRow: 2,
+            probability: 0.45,
+            inlandMin: 300,
+            inlandMax: 620,
+            minElevation: 24,
+            maxElevation: 78,
+            slopeMax: 1.1,
+            radius: 192,
+            composeTransform: (dummy, r, x, y, z) =>
+            {
+                const base = 0.45 + r[4] * 1.2
+                const scaleX = base * (0.8 + r[5] * 0.7)
+                const scaleY = base * (0.45 + r[6] * 0.45)
+                const scaleZ = base * (0.8 + r[7] * 0.7)
+                dummy.position.set(x, y - 0.2 * scaleY, z)
+                dummy.rotation.set(0, r[4] * Math.PI * 2, 0)
+                dummy.scale.set(scaleX, scaleY, scaleZ)
+            },
+            collision: (dummy) => ({
+                radius: 0.8 * (dummy.scale.x + dummy.scale.z) * 0.5,
+                height: 0.9 * dummy.scale.y
+            }),
+            tint: (color, r) => color.setRGB(0.82 + r[5] * 0.12, 0.86 + r[6] * 0.12, 0.9 + r[7] * 0.1)
+        })
+
+        this.layers = [this.palms, this.conifers, this.highlandConifers, ...this.boulders, this.highlandBoulders]
     }
 
     update()

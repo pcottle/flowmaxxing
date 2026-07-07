@@ -23,6 +23,10 @@ export default class Particles
         this.index = 0
         this.sprayTimer = 0
         this.curlTimer = 1.5
+        this.jumpStreakSize = 1
+        this.jumpCurlSize = 2
+        this.jumpStreakCount = 10
+        this.jumpCurlCount = 4
         this.setGeometry()
         this.setMaterial()
         this.setPoints()
@@ -32,15 +36,24 @@ export default class Particles
 
         playerState.events.on('jump', () =>
         {
-            this.spawnWindMarks(14, playerState.position.current, {
+            this.spawnWindMarks(10, playerState.position.current, {
                 angle: this.getTravelAngle(playerState),
                 spread: Math.PI * 0.85,
                 radius: 0.45,
                 speed: 3.5,
                 up: 1.9,
-                size: 15,
+                size: this.jumpStreakSize,
                 stretch: 1.7,
                 lifetime: 0.55
+            })
+            this.spawnCurlBurst(4, playerState.position.current, {
+                angle: this.getTravelAngle(playerState),
+                spread: Math.PI * 2,
+                radius: 0.7,
+                speed: 2.6,
+                up: 1.5,
+                size: this.jumpCurlSize,
+                lifetime: 0.85
             })
         })
 
@@ -263,6 +276,59 @@ export default class Particles
         types.needsUpdate = true
     }
 
+    // Small wind curls flung outward from a trick — same spiral glyph as the
+    // ambient curls, but short-lived punctuation marks around the player
+    spawnCurlBurst(burstCount, origin, options)
+    {
+        const positions = this.geometry.attributes.position
+        const velocities = this.geometry.attributes.aVelocity
+        const spawnTimes = this.geometry.attributes.aSpawnTime
+        const lifetimes = this.geometry.attributes.aLifetime
+        const sizes = this.geometry.attributes.aSize
+        const rotations = this.geometry.attributes.aRotation
+        const stretches = this.geometry.attributes.aStretch
+        const types = this.geometry.attributes.aType
+
+        for(let i = 0; i < burstCount; i++)
+        {
+            const baseAngle = options.angle ?? Math.random() * Math.PI * 2
+            const spread = options.spread ?? Math.PI * 2
+            const angle = baseAngle + (i / burstCount + (Math.random() - 0.5) * 0.25) * spread
+            const radius = (options.radius ?? 0.5) * (0.7 + Math.random() * 0.6)
+            const radial = options.speed * (0.6 + Math.random() * 0.5)
+
+            positions.setXYZ(
+                this.index,
+                origin[0] + Math.sin(angle) * radius,
+                origin[1] + 0.5 + Math.random() * 0.8,
+                origin[2] + Math.cos(angle) * radius
+            )
+            velocities.setXYZ(
+                this.index,
+                Math.sin(angle) * radial,
+                options.up * (0.5 + Math.random()),
+                Math.cos(angle) * radial
+            )
+            spawnTimes.setX(this.index, this.time.elapsed)
+            lifetimes.setX(this.index, options.lifetime * (0.75 + Math.random() * 0.5))
+            sizes.setX(this.index, options.size * (0.8 + Math.random() * 0.4))
+            rotations.setX(this.index, angle)
+            stretches.setX(this.index, 1.25)
+            types.setX(this.index, 2)
+
+            this.index = (this.index + 1) % this.count
+        }
+
+        positions.needsUpdate = true
+        velocities.needsUpdate = true
+        spawnTimes.needsUpdate = true
+        lifetimes.needsUpdate = true
+        sizes.needsUpdate = true
+        rotations.needsUpdate = true
+        stretches.needsUpdate = true
+        types.needsUpdate = true
+    }
+
     // Ambient Wind Waker wind curl: a white spiral glyph drifting down-beach
     spawnCurl(origin)
     {
@@ -376,5 +442,7 @@ export default class Particles
         folder.addColor(this.material.uniforms.uColor, 'value').name('uColor')
         folder.addColor(this.material.uniforms.uHighlightColor, 'value').name('uHighlightColor')
         folder.add(this.material.uniforms.uOpacity, 'value').min(0).max(1).step(0.01).name('uOpacity')
+        folder.add(this, 'jumpStreakSize').min(0.5).max(20).step(0.5)
+        folder.add(this, 'jumpCurlSize').min(0.5).max(20).step(0.5)
     }
 }

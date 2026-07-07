@@ -53,6 +53,13 @@ export default class Terrains
             mountainHeight: 40,
             ridgeAmplitude: 18,
             ridgeFrequency: 0.01,
+            highlandStartDistance: 320,
+            highlandFullDistance: 450,
+            highlandHeight: 44,
+            highlandBowlDepth: 8,
+            highlandUndulation: 5,
+            highlandRidgeAmplitude: 3,
+            highlandDetail: 0.08,
             moundHeight: 3.5,
             moundFrequency: 0.018,
             oceanDetail: 0.06,
@@ -113,6 +120,12 @@ export default class Terrains
                     mountainFullDistance: 175,
                     mountainHeight: 55,
                     ridgeAmplitude: 26,
+                    highlandStartDistance: 250,
+                    highlandFullDistance: 390,
+                    highlandHeight: 52,
+                    highlandBowlDepth: 6,
+                    highlandUndulation: 6,
+                    highlandRidgeAmplitude: 4,
                     terraceStrength: 0.85,
                     oceanDepth: 12
                 },
@@ -131,6 +144,13 @@ export default class Terrains
                     mountainFullDistance: 320,
                     mountainHeight: 24,
                     ridgeAmplitude: 10,
+                    highlandStartDistance: 430,
+                    highlandFullDistance: 620,
+                    highlandHeight: 30,
+                    highlandBowlDepth: 5,
+                    highlandUndulation: 3.5,
+                    highlandRidgeAmplitude: 2,
+                    highlandDetail: 0.05,
                     terraceStrength: 0.25
                 },
                 colors: {
@@ -391,6 +411,13 @@ export default class Terrains
         corridorFolder.add(this.corridor, 'mountainHeight').min(0).max(120).step(1).onFinishChange(() => this.recreate())
         corridorFolder.add(this.corridor, 'ridgeAmplitude').min(0).max(60).step(0.5).onFinishChange(() => this.recreate())
         corridorFolder.add(this.corridor, 'ridgeFrequency').min(0).max(0.05).step(0.001).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandStartDistance').min(150).max(1200).step(1).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandFullDistance').min(200).max(1400).step(1).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandHeight').min(0).max(120).step(1).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandBowlDepth').min(0).max(30).step(0.5).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandUndulation').min(0).max(30).step(0.5).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandRidgeAmplitude').min(0).max(20).step(0.5).onFinishChange(() => this.recreate())
+        corridorFolder.add(this.corridor, 'highlandDetail').min(0).max(1).step(0.005).onFinishChange(() => this.recreate())
         corridorFolder.add(this.corridor, 'moundHeight').min(0).max(15).step(0.1).onFinishChange(() => this.recreate())
         corridorFolder.add(this.corridor, 'moundFrequency').min(0).max(0.1).step(0.001).onFinishChange(() => this.recreate())
         corridorFolder.add(this.corridor, 'oceanDetail').min(0).max(1).step(0.005).onFinishChange(() => this.recreate())

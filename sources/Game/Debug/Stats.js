@@ -8,10 +8,23 @@ export default class Stats
         this.instance.showPanel(3)
 
         this.active = false
+        this.hidden = false
         this.max = 40
         this.ignoreMaxed = true
 
         this.activate()
+    }
+
+    show()
+    {
+        this.hidden = false
+        this.instance.dom.style.display = 'block'
+    }
+
+    hide()
+    {
+        this.hidden = true
+        this.instance.dom.style.display = 'none'
     }
 
     activate()
@@ -45,7 +58,7 @@ export default class Stats
 
     beforeRender()
     {
-        if(!this.active)
+        if(!this.active || this.hidden)
         {
             return
         }
@@ -89,7 +102,7 @@ export default class Stats
 
     afterRender()
     {
-        if(!this.active)
+        if(!this.active || this.hidden)
         {
             return
         }
@@ -103,7 +116,7 @@ export default class Stats
 
     update()
     {
-        if(!this.active)
+        if(!this.active || this.hidden)
         {
             return
         }

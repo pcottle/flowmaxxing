@@ -8,7 +8,7 @@
  *
  * corridorOffsets allocation: 0-1 meander, 2 mountain scale, 3-4 ridges,
  * 5-6 mounds, 7-8 biome selector, 9-10 cove/headland, 11 terrace jitter,
- * 12-13 sea stacks, 14 stack height, 15 spare.
+ * 12-13 sea stacks, 14 stack height, 15 highland basin.
  */
 
 const linearStep = (edgeMin, edgeMax, value) =>
@@ -77,6 +77,9 @@ export const getCorridorProfile = (noise, z, corridor, offsets, biomes) =>
         baseStart - corridor.coveAmplitude * coveShaped,
         beachWidth + corridor.minPassGap
     )
+    const mountainFull = mountainStart + wallWidth
+    const highlandStart = Math.max(blend('highlandStartDistance'), mountainFull + 30)
+    const highlandFull = Math.max(blend('highlandFullDistance'), highlandStart + 30)
 
     return {
         weights,
@@ -87,9 +90,16 @@ export const getCorridorProfile = (noise, z, corridor, offsets, biomes) =>
         hillsWidth: blend('hillsWidth'),
         hillsHeight: blend('hillsHeight'),
         mountainStart,
-        mountainFull: mountainStart + wallWidth,
+        mountainFull,
         mountainHeight: blend('mountainHeight'),
         ridgeAmplitude: blend('ridgeAmplitude'),
+        highlandStart,
+        highlandFull,
+        highlandHeight: blend('highlandHeight'),
+        highlandBowlDepth: blend('highlandBowlDepth'),
+        highlandUndulation: blend('highlandUndulation'),
+        highlandRidgeAmplitude: blend('highlandRidgeAmplitude'),
+        highlandDetail: blend('highlandDetail'),
         moundHeight: blend('moundHeight'),
         oceanDepth: blend('oceanDepth'),
         hillsDetail: blend('hillsDetail'),

@@ -17,12 +17,7 @@ export default class Controls
 
         this.events.on('debugDown', () =>
         {
-            if(location.hash === '#debug')
-                location.hash = ''
-            else
-                location.hash = 'debug'
-
-            location.reload()
+            this.game.debug.toggle()
         })
     }
 

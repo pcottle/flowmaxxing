@@ -34,6 +34,16 @@ export default class Terrain
 
     getElevationForPosition(x, z)
     {
+        const sample = this.getSampleForPosition(x, z)
+
+        if(sample === false)
+            return false
+
+        return sample.elevation
+    }
+
+    getSampleForPosition(x, z)
+    {
         if(!this.ready)
         {
             // console.warn('terrain not ready')
@@ -49,15 +59,20 @@ export default class Terrain
         const relativeZ = z - this.z + this.halfSize
 
         // Ratio
-        const xRatio = (relativeX / subSize) % 1
-        const zRatio = (relativeZ / subSize) % 1
+        const cellX = relativeX / subSize
+        const cellZ = relativeZ / subSize
+        const xRatio = cellX % 1
+        const zRatio = cellZ % 1
         
         // Indexes
-        const aIndexX = Math.floor(relativeX / subSize)
-        const aIndexZ = Math.floor(relativeZ / subSize)
+        const aIndexX = Math.floor(cellX)
+        const aIndexZ = Math.floor(cellZ)
             
         const cIndexX = aIndexX + 1
         const cIndexZ = aIndexZ + 1
+
+        if(aIndexX < 0 || aIndexZ < 0 || cIndexX >= segments || cIndexZ >= segments)
+            return false
 
         const bIndexX = xRatio < zRatio ? aIndexX : aIndexX + 1
         const bIndexZ = xRatio < zRatio ? aIndexZ + 1 : aIndexZ
@@ -77,26 +92,26 @@ export default class Terrain
         const cElevation = this.positions[cStrideIndex + 1]
         const elevation = aElevation * weight1 + bElevation * weight2 + cElevation * weight3
 
-        // // Normal
-        // const aNormalX = this.normals[aStrideIndex]
-        // const aNormalY = this.normals[aStrideIndex + 1]
-        // const aNormalZ = this.normals[aStrideIndex + 2]
+        // Normal
+        const normalX = this.normals[aStrideIndex] * weight1
+            + this.normals[bStrideIndex] * weight2
+            + this.normals[cStrideIndex] * weight3
+        const normalY = this.normals[aStrideIndex + 1] * weight1
+            + this.normals[bStrideIndex + 1] * weight2
+            + this.normals[cStrideIndex + 1] * weight3
+        const normalZ = this.normals[aStrideIndex + 2] * weight1
+            + this.normals[bStrideIndex + 2] * weight2
+            + this.normals[cStrideIndex + 2] * weight3
+        const normalLength = Math.hypot(normalX, normalY, normalZ) || 1
 
-        // const bNormalX = this.normals[bStrideIndex]
-        // const bNormalY = this.normals[bStrideIndex + 1]
-        // const bNormalZ = this.normals[bStrideIndex + 2]
-
-        // const cNormalX = this.normals[cStrideIndex]
-        // const cNormalY = this.normals[cStrideIndex + 1]
-        // const cNormalZ = this.normals[cStrideIndex + 2]
-
-        // const normal = [
-        //     aNormalX * weight1 + bNormalX * weight2 + cNormalX * weight3,
-        //     aNormalY * weight1 + bNormalY * weight2 + cNormalY * weight3,
-        //     aNormalZ * weight1 + bNormalZ * weight2 + cNormalZ * weight3
-        // ]
-
-        return elevation
+        return {
+            elevation,
+            normal: [
+                normalX / normalLength,
+                normalY / normalLength,
+                normalZ / normalLength
+            ]
+        }
     }
 
     destroy()

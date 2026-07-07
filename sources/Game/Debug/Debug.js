@@ -17,21 +17,40 @@ export default class Debug
 
         Debug.instance = this
 
-        this.active = false
-
-        if(location.hash === '#debug')
-        {
-            this.activate()
-        }
-    }
-
-    activate()
-    {
-        if(this.active)
-            return
-            
         this.active = true
         this.ui = new UI()
         this.stats = new Stats()
+
+        this.visible = true
+
+        if(location.hash !== '#debug')
+            this.hide()
+    }
+
+    show()
+    {
+        this.visible = true
+        this.ui.instance.show()
+        this.stats.show()
+
+        location.hash = 'debug'
+    }
+
+    hide()
+    {
+        this.visible = false
+        this.ui.instance.hide()
+        this.stats.hide()
+
+        if(location.hash === '#debug')
+            history.replaceState(null, '', location.pathname + location.search)
+    }
+
+    toggle()
+    {
+        if(this.visible)
+            this.hide()
+        else
+            this.show()
     }
 }

@@ -284,12 +284,21 @@ export default class Chunks
 
     getElevationForPosition(x, z)
     {
+        const sample = this.getSampleForPosition(x, z)
+
+        if(sample === false)
+            return false
+
+        return sample.elevation
+    }
+
+    getSampleForPosition(x, z)
+    {
         const currentChunk = this.getDeepestChunkForPosition(x, z)
 
         if(!currentChunk || !currentChunk.terrain)
             return false
 
-        const elevation = currentChunk.terrain.getElevationForPosition(x, z)
-        return elevation
+        return currentChunk.terrain.getSampleForPosition(x, z)
     }
 }

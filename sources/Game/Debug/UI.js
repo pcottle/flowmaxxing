@@ -8,6 +8,12 @@ export default class UI
 
         const sheet = window.document.styleSheets[0]
         sheet.insertRule(`
+            .lil-gui.root > .title
+            {
+                display: none;
+            }
+        `, sheet.cssRules.length)
+        sheet.insertRule(`
             .lil-gui .lil-gui > .children
             {
                 border: none;
@@ -32,6 +38,7 @@ export default class UI
         const parts = path.split('/')
 
         let branch = this.tree
+        let depth = 0
 
         for(const part of parts)
         {
@@ -41,12 +48,17 @@ export default class UI
             {
                 newBranch = {}
                 newBranch.folder = branch.folder.addFolder(part)
-                newBranch.folder.close()
+
+                // Top-level folders (state, view) stay open
+                if(depth > 0)
+                    newBranch.folder.close()
+
                 newBranch.children = {}
             }
 
             branch.children[part] = newBranch
             branch = newBranch
+            depth++
         }
 
         return branch.folder

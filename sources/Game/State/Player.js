@@ -91,9 +91,13 @@ export default class Player
 
         // Soft barriers (steep mountain wall, deep water)
         // Min sits above the mound-side grades (~0.4) so beach parkour stays full speed
-        this.slopeGradeMin = 0.45
-        this.slopeGradeMax = 0.9
-        this.slopeSpeedFloor = 0.15
+        this.slopeGradeMin = 0.35
+        this.slopeGradeMax = 0.75
+        this.slopeSpeedFloor = 0.08
+        this.slopeBlockGrade = 0.95
+        this.slopeWallSpeedRatio = 0.18
+        this.slopeSlideRate = 0.55
+        this.slopeProbeDistance = 1.5
         this.wadingDepth = 2
         this.wadingSpeedRatio = 0.35
 
@@ -251,9 +255,69 @@ export default class Player
         }
     }
 
+    getTerrainGradient(sample)
+    {
+        if(sample === false || !sample.normal)
+            return false
+
+        const normal = sample.normal
+        const normalY = Math.max(0.001, Math.abs(normal[1]))
+
+        return {
+            x: - normal[0] / normalY,
+            z: - normal[2] / normalY
+        }
+    }
+
+    getTerrainGradeInDirection(sample, directionX, directionZ)
+    {
+        const gradient = this.getTerrainGradient(sample)
+
+        if(gradient === false)
+            return 0
+
+        return gradient.x * directionX + gradient.z * directionZ
+    }
+
+    applySteepSlopeLimit(delta, sample)
+    {
+        if(!this.grounded || this.swimming)
+            return
+
+        const gradient = this.getTerrainGradient(sample)
+
+        if(gradient === false)
+            return
+
+        const slopeGrade = Math.hypot(gradient.x, gradient.z)
+
+        if(slopeGrade <= this.slopeBlockGrade)
+            return
+
+        const uphillX = gradient.x / slopeGrade
+        const uphillZ = gradient.z / slopeGrade
+        const uphillSpeed = this.velocity[0] * uphillX + this.velocity[2] * uphillZ
+
+        if(uphillSpeed > 0)
+        {
+            const bleed = uphillSpeed * (1 - this.slopeWallSpeedRatio)
+            this.velocity[0] -= uphillX * bleed
+            this.velocity[2] -= uphillZ * bleed
+        }
+
+        const slide = Math.min((slopeGrade - this.slopeBlockGrade) / this.slopeBlockGrade, 1)
+            * this.gravityFalling
+            * this.slopeSlideRate
+            * delta
+
+        this.velocity[0] -= uphillX * slide
+        this.velocity[2] -= uphillZ * slide
+    }
+
     update()
     {
         const delta = this.time.delta
+        const chunks = this.state.chunks
 
         if(!this.spawned)
         {
@@ -274,6 +338,8 @@ export default class Player
         const flowDecay = this.horizontalSpeed < 10 ? this.flowDecaySlowRate : this.flowDecayRate
         this.flow = Math.max(0, this.flow - flowDecay * delta)
 
+        const surfaceSample = chunks.getSampleForPosition(this.position.current[0], this.position.current[2])
+
         /**
          * Soft barriers: deep water and steep uphill grades scale the max speed down
          */
@@ -291,19 +357,23 @@ export default class Player
 
         if(this.grounded && !this.swimming && this.horizontalSpeed > 0.5)
         {
-            const probeDistance = 1.5
+            const probeDistance = this.slopeProbeDistance
             const directionX = this.velocity[0] / this.horizontalSpeed
             const directionZ = this.velocity[2] / this.horizontalSpeed
-            const chunksState = this.state.chunks
-            const elevationHere = chunksState.getElevationForPosition(this.position.current[0], this.position.current[2])
-            const elevationAhead = chunksState.getElevationForPosition(this.position.current[0] + directionX * probeDistance, this.position.current[2] + directionZ * probeDistance)
+            let grade = this.getTerrainGradeInDirection(surfaceSample, directionX, directionZ)
+            const elevationAhead = probeDistance > 0
+                ? chunks.getElevationForPosition(this.position.current[0] + directionX * probeDistance, this.position.current[2] + directionZ * probeDistance)
+                : false
 
-            if(Number.isFinite(elevationHere) && Number.isFinite(elevationAhead))
+            if(surfaceSample !== false && Number.isFinite(elevationAhead))
             {
-                const grade = (elevationAhead - elevationHere) / probeDistance
-                const steepness = Math.max(0, Math.min(1, (grade - this.slopeGradeMin) / (this.slopeGradeMax - this.slopeGradeMin)))
-                moveScale *= 1 - steepness * (1 - this.slopeSpeedFloor)
+                const probeGrade = (elevationAhead - surfaceSample.elevation) / probeDistance
+                grade = Math.max(grade, probeGrade)
             }
+
+            const slopeRange = Math.max(0.001, this.slopeGradeMax - this.slopeGradeMin)
+            const steepness = Math.max(0, Math.min(1, (grade - this.slopeGradeMin) / slopeRange))
+            moveScale *= 1 - steepness * (1 - this.slopeSpeedFloor)
         }
 
         /**
@@ -359,6 +429,8 @@ export default class Player
             this.velocity[2] *= damping
         }
 
+        this.applySteepSlopeLimit(delta, surfaceSample)
+
         // Skiing: on downhill grades gravity accelerates the player along the slope.
         // Grade comes from the smoothed ground-follow velocity, so no extra terrain samples
         if(this.grounded)
@@ -375,8 +447,46 @@ export default class Player
             }
         }
 
+        const beforeMoveX = this.position.current[0]
+        const beforeMoveZ = this.position.current[2]
+
         this.position.current[0] += this.velocity[0] * delta
         this.position.current[2] += this.velocity[2] * delta
+
+        if(this.grounded && !this.swimming && surfaceSample !== false)
+        {
+            const movedSurfaceSample = chunks.getSampleForPosition(this.position.current[0], this.position.current[2])
+            const gradient = this.getTerrainGradient(movedSurfaceSample)
+
+            if(gradient !== false)
+            {
+                const slopeGrade = Math.hypot(gradient.x, gradient.z)
+
+                if(slopeGrade > this.slopeBlockGrade && movedSurfaceSample.elevation > surfaceSample.elevation)
+                {
+                    const uphillX = gradient.x / slopeGrade
+                    const uphillZ = gradient.z / slopeGrade
+                    const uphillDistance = (this.position.current[0] - beforeMoveX) * uphillX
+                        + (this.position.current[2] - beforeMoveZ) * uphillZ
+
+                    if(uphillDistance > 0)
+                    {
+                        const correction = uphillDistance * (1 - this.slopeWallSpeedRatio)
+                        this.position.current[0] -= uphillX * correction
+                        this.position.current[2] -= uphillZ * correction
+
+                        const uphillSpeed = this.velocity[0] * uphillX + this.velocity[2] * uphillZ
+
+                        if(uphillSpeed > 0)
+                        {
+                            const bleed = uphillSpeed * (1 - this.slopeWallSpeedRatio)
+                            this.velocity[0] -= uphillX * bleed
+                            this.velocity[2] -= uphillZ * bleed
+                        }
+                    }
+                }
+            }
+        }
 
         /**
          * Prop collisions: push out of tree trunks and rocks, slide along
@@ -437,8 +547,8 @@ export default class Player
         /**
          * Vertical / elevation
          */
-        const chunks = this.state.chunks
-        const elevation = chunks.getElevationForPosition(this.position.current[0], this.position.current[2])
+        const postMoveSample = chunks.getSampleForPosition(this.position.current[0], this.position.current[2])
+        const elevation = postMoveSample === false ? false : postMoveSample.elevation
 
         if(elevation === false || !Number.isFinite(elevation))
         {
@@ -637,6 +747,10 @@ export default class Player
         folder.add(this, 'slopeGradeMin').min(0).max(2).step(0.01)
         folder.add(this, 'slopeGradeMax').min(0).max(3).step(0.01)
         folder.add(this, 'slopeSpeedFloor').min(0).max(1).step(0.01)
+        folder.add(this, 'slopeBlockGrade').min(0).max(3).step(0.01)
+        folder.add(this, 'slopeWallSpeedRatio').min(0).max(1).step(0.01)
+        folder.add(this, 'slopeSlideRate').min(0).max(3).step(0.01)
+        folder.add(this, 'slopeProbeDistance').min(0).max(5).step(0.1)
         folder.add(this, 'wadingDepth').min(0.1).max(10).step(0.1)
         folder.add(this, 'wadingSpeedRatio').min(0).max(1).step(0.01)
         folder.add(this, 'swimDepth').min(0.3).max(5).step(0.05)

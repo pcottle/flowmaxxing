@@ -50,6 +50,7 @@ const getElevation = (x, z, profile, lacunarity, persistence, iterations, baseFr
     const tDry = smoothStep(- 6, profile.beachWidth, inland)
     const tHills = smoothStep(profile.beachWidth, profile.beachWidth + profile.hillsWidth, inland)
     const tMount = smoothStep(profile.mountainStart, profile.mountainFull, inland)
+    const tHighland = smoothStep(profile.highlandStart, profile.highlandFull, inland)
 
     let elevation =
         - profile.oceanDepth * tOcean
@@ -92,6 +93,24 @@ const getElevation = (x, z, profile, lacunarity, persistence, iterations, baseFr
         elevation = mix(elevation, shaped, terraceBlend)
     }
 
+    // Beyond the winter wall: a smoother frozen highland/basin so the far side
+    // reads as a traversable snowfield instead of endless vertical ridges.
+    if(tHighland > 0)
+    {
+        const basinNoise = elevationRandom.noise2D(x * 0.004 + corridorOffsets[15][0], z * 0.004 + corridorOffsets[15][1])
+        const driftNoise = elevationRandom.noise2D(x * 0.008 + corridorOffsets[15][0] + 83.1, z * 0.004 + corridorOffsets[15][1] - 41.7)
+        const shelfNoise = elevationRandom.noise2D(x * 0.006 + corridorOffsets[15][0] - 127.4, z * 0.006 + corridorOffsets[15][1] + 62.3)
+        const ridgeNoise = 1 - Math.abs(elevationRandom.noise2D(x * 0.014 + corridorOffsets[15][0] + 211.8, z * 0.009 + corridorOffsets[15][1] - 95.2))
+        const basin = profile.highlandHeight * profile.mountainScale
+            - profile.highlandBowlDepth * smoothStep(- 0.25, 0.65, basinNoise)
+            + driftNoise * profile.highlandUndulation
+            + Math.pow(ridgeNoise, 2.2) * profile.highlandRidgeAmplitude
+        const shelf = smoothStep(0.46, 0.72, shelfNoise)
+        const shelfHeight = profile.highlandHeight * profile.mountainScale - profile.highlandBowlDepth * 0.45
+
+        elevation = mix(elevation, mix(basin, shelfHeight, shelf * 0.45), tHighland)
+    }
+
     // Offshore sea stacks: rare steep spires rising from the seabed (fixed octaves)
     const stackBand = smoothStep(corridor.stackBandNear, corridor.stackBandNear + 20, seaward)
         * (1 - smoothStep(corridor.stackBandFar - 40, corridor.stackBandFar, seaward))
@@ -114,7 +133,11 @@ const getElevation = (x, z, profile, lacunarity, persistence, iterations, baseFr
     // the 7m steps stay readable
     const detailAmplitude = mix(
         mix(corridor.oceanDetail, corridor.beachDetail, smoothStep(- corridor.oceanRampWidth * 0.5, 0, inland)),
-        mix(profile.hillsDetail, 1 - terraceBlend * corridor.terraceDetailSuppress, tMount),
+        mix(
+            mix(profile.hillsDetail, 1 - terraceBlend * corridor.terraceDetailSuppress, tMount),
+            profile.highlandDetail,
+            tHighland
+        ),
         tHills
     ) * baseAmplitude
     elevation += detail * detailAmplitude

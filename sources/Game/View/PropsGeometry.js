@@ -34,6 +34,15 @@ const addAttributes = (geometry, color, swayGetter) =>
     return nonIndexed
 }
 
+const mixColor = (a, b, t) =>
+{
+    return [
+        a[0] * (1 - t) + b[0] * t,
+        a[1] * (1 - t) + b[1] * t,
+        a[2] * (1 - t) + b[2] * t
+    ]
+}
+
 export const buildPalm = () =>
 {
     const parts = []
@@ -104,7 +113,7 @@ export const buildPalm = () =>
     return merged
 }
 
-export const buildConifer = () =>
+export const buildConifer = (options = {}) =>
 {
     const parts = []
 
@@ -121,13 +130,23 @@ export const buildConifer = () =>
     for(let i = 0; i < tiers.length; i++)
     {
         const tier = tiers[i]
-        const cone = new THREE.ConeGeometry(tier.radius, tier.height, 6, 1, true)
+        const cone = new THREE.ConeGeometry(tier.radius, tier.height, 6, options.snow ? 3 : 1, true)
         cone.translate(0, tier.baseY + tier.height * 0.5, 0)
 
         const lightness = i * 0.03
+        const needles = [0.15 + lightness, 0.3 + lightness * 1.6, 0.18 + lightness]
         parts.push(addAttributes(
             cone,
-            [0.15 + lightness, 0.3 + lightness * 1.6, 0.18 + lightness],
+            (x, y, z) =>
+            {
+                if(!options.snow)
+                    return needles
+
+                const heightT = Math.max(0, Math.min(1, (y - tier.baseY) / tier.height))
+                const radialT = Math.min(Math.hypot(x, z) / tier.radius, 1)
+                const snow = Math.max(0, Math.min(1, (heightT - 0.38) / 0.38)) * (0.35 + radialT * 0.65)
+                return mixColor(needles, [0.88, 0.94, 0.96], snow)
+            },
             (x, y) => Math.pow(y / 4.5, 2) * 0.6
         ))
     }
