@@ -109,16 +109,6 @@ export default class Player
         this.helper.geometry = geometry
         this.tilt.add(this.helper)
 
-        // Inverted-hull ink outline: scaled BackSide shell, child of the helper
-        // so spin/tilt/squash all inherit
-        this.outline = new THREE.Mesh(
-            geometry,
-            new THREE.MeshBasicMaterial({ color: '#1c1713', side: THREE.BackSide })
-        )
-        this.outline.scale.setScalar(1.06)
-        this.outline.position.y = - 0.9 * 0.06
-        this.helper.add(this.outline)
-
         this.ribbonAnchor = new THREE.Object3D()
         this.tilt.add(this.ribbonAnchor)
 

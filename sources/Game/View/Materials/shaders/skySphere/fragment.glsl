@@ -26,7 +26,7 @@ void main()
     float glow = smoothstep(0.0, 1.0, clamp(1.0 - distanceToSun / uSunAmplitude, 0.0, 1.0)) * uSunMultiplier;
     glow += pow(max(0.0, 1.0 + 0.05 - distanceToSun * 2.5), 2.0);
 
-    float halo = smoothstep(0.10, 0.12, glow) * 0.35 + smoothstep(0.50, 0.53, glow) * 0.65;
+    float halo = smoothstep(0.72, 0.75, glow) * 0.3 + smoothstep(1.1, 1.15, glow) * 0.7;
     color = blendAdd(color, uColorSun, halo);
 
     gl_FragColor = vec4(color, 1.0);

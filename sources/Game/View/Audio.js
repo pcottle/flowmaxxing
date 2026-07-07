@@ -24,6 +24,8 @@ export default class Audio
         this.glideVolume = 0.05
         this.flowPadVolume = 0.04
         this.susVolume = 0.045
+        this.surfVolume = 0.06
+        this.crashVolume = 0.12
 
         // Two-octave A pentatonic scales: minor at night, major by day
         this.scales = {}
@@ -73,6 +75,7 @@ export default class Audio
         this.setPad()
         this.setGlide()
         this.setSus()
+        this.setSurf()
 
         const playerState = this.state.player
 
@@ -374,6 +377,31 @@ export default class Audio
             oscillator.connect(this.sus.gain)
             oscillator.start()
         }
+    }
+
+    setSurf()
+    {
+        // Ocean wash: a deep noise bed audible only near the shore, swelling
+        // with each incoming set. Slowed playback decorrelates it from the
+        // wind (same noise buffer) and darkens it into a rumble
+        this.surf = {}
+        this.surf.source = this.context.createBufferSource()
+        this.surf.source.buffer = this.getNoiseBuffer()
+        this.surf.source.loop = true
+        this.surf.source.playbackRate.value = 0.7
+
+        this.surf.filter = this.context.createBiquadFilter()
+        this.surf.filter.type = 'lowpass'
+        this.surf.filter.frequency.value = 500
+        this.surf.filter.Q.value = 0.7
+
+        this.surf.gain = this.context.createGain()
+        this.surf.gain.gain.value = 0
+
+        this.surf.source.connect(this.surf.filter)
+        this.surf.filter.connect(this.surf.gain)
+        this.surf.gain.connect(this.masterGain)
+        this.surf.source.start()
     }
 
     rememberNote(frequency)
