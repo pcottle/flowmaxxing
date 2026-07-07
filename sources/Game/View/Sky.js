@@ -43,7 +43,8 @@ export default class Sky
         this.customRender = {}
         this.customRender.scene = new THREE.Scene()
         this.customRender.camera = this.view.camera.instance.clone()
-        this.customRender.resolutionRatio = 0.1
+        // High enough that hard-edged toon clouds survive the upscale
+        this.customRender.resolutionRatio = 0.35
         this.customRender.renderTarget = new THREE.WebGLRenderTarget(
             this.viewport.width * this.customRender.resolutionRatio,
             this.viewport.height * this.customRender.resolutionRatio,

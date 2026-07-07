@@ -20,6 +20,7 @@ uniform vec3 uColorSun;
 uniform float uDayCycleProgress;
 
 varying vec3 vColor;
+varying vec3 vSpherePosition;
 
 vec3 blendAdd(vec3 base, vec3 blend)
 {
@@ -57,12 +58,6 @@ void main()
     vec3 color = mix(colorNight, colorDayCycle, dayIntensity);
 
     /**
-     * Sun glow
-     */
-    // Distance to sun
-    float distanceToSun = distance(normalizedPosition, uSunPosition);
-
-    /**
      * Dawn
      */
     // Dawn angle intensity
@@ -79,16 +74,7 @@ void main()
     float dawnIntensity = clamp(dawnAngleIntensity * dawnElevationIntensity * dawnDayCycleIntensity, 0.0, 1.0);
     color = blendAdd(color, uColorDawn, dawnIntensity);
 
-    /**
-     * Sun glow
-     */
-    // Sun intensity
-    float sunIntensity = smoothstep(0.0, 1.0, clamp(1.0 - distanceToSun / uSunAmplitude, 0.0, 1.0)) * uSunMultiplier;
-    color = blendAdd(color, uColorSun, sunIntensity);
-
-    float sunGlowStrength = pow(max(0.0, 1.0 + 0.05 - distanceToSun * 2.5), 2.0);
-    color = blendAdd(color, uColorSun, sunGlowStrength);
-
+    // Sun glow happens per-fragment (posterized toon halo) — see fragment shader
     vColor = vec3(color);
-    // vColor = vec3(sunIntensity);
+    vSpherePosition = position;
 }

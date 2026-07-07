@@ -98,9 +98,9 @@ export default class Terrains
                 name: 'golden',
                 overrides: {},
                 colors: {
-                    sand: [0.76, 0.68, 0.45],
-                    grass: [0.52, 0.65, 0.26],
-                    rock: [0.37, 0.38, 0.36]
+                    sand: [0.93, 0.83, 0.60],
+                    grass: [0.30, 0.64, 0.26],
+                    rock: [0.42, 0.42, 0.40]
                 }
             },
             {
@@ -117,9 +117,9 @@ export default class Terrains
                     oceanDepth: 12
                 },
                 colors: {
-                    sand: [0.16, 0.15, 0.16],
-                    grass: [0.3, 0.38, 0.22],
-                    rock: [0.13, 0.12, 0.13]
+                    sand: [0.17, 0.15, 0.18],
+                    grass: [0.28, 0.44, 0.22],
+                    rock: [0.15, 0.13, 0.16]
                 }
             },
             {
@@ -134,9 +134,9 @@ export default class Terrains
                     terraceStrength: 0.25
                 },
                 colors: {
-                    sand: [0.85, 0.78, 0.58],
-                    grass: [0.68, 0.62, 0.3],
-                    rock: [0.48, 0.44, 0.38]
+                    sand: [0.94, 0.85, 0.62],
+                    grass: [0.76, 0.66, 0.28],
+                    rock: [0.54, 0.48, 0.40]
                 }
             }
         ]

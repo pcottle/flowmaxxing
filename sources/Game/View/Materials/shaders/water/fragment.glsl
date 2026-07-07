@@ -90,7 +90,8 @@ void main()
 
     vec3 viewDirection = normalize(vWorldPosition - cameraPosition);
     float glint = pow(max(0.0, dot(reflect(normalize(uSunPosition), faceNormal), viewDirection)), 30.0);
-    color = mix(color, vec3(1.0), clamp(glint, 0.0, 1.0) * 0.7);
+    float chip = step(0.45, glint);
+    color = mix(color, vec3(1.0), chip * 0.85);
 
     // Foam last, after lighting — flat unshaded white, the toon signature
     color = mix(color, getTimeOfDayColor(uFoamColor), foam);

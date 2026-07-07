@@ -35,6 +35,7 @@ export default function TerrainMaterial()
             uWetLine: { value: 0 },
             uWetFresh: { value: 0 }
         },
+        extensions: { derivatives: true },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
     })

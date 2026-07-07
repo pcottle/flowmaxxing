@@ -1,15 +1,11 @@
 uniform vec3 uPlayerPosition;
 uniform float uLightnessSmoothness;
-uniform float uFresnelOffset;
-uniform float uFresnelScale;
-uniform float uFresnelPower;
 uniform vec3 uSunPosition;
 uniform float uGrassDistance;
 uniform float uBeachEnd;
 uniform float uMountainStart;
 uniform float uMountainFull;
 uniform sampler2D uTexture;
-uniform sampler2D uFogTexture;
 uniform float uTime;
 uniform sampler2D uCorridorTexture;
 uniform float uCorridorZMin;
@@ -25,14 +21,14 @@ uniform float uWetLine;
 uniform float uWetFresh;
 
 varying vec3 vColor;
+varying vec3 vWetColor;
+varying vec3 vWorldPosition;
+varying float vWetness;
+varying float vViewDepth;
+varying vec4 vClipPosition;
 
 #include ../partials/inverseLerp.glsl
 #include ../partials/remap.glsl
-#include ../partials/getSunShade.glsl;
-#include ../partials/getSunShadeColor.glsl;
-#include ../partials/getSunReflection.glsl;
-#include ../partials/getSunReflectionColor.glsl;
-#include ../partials/getFogColor.glsl;
 #include ../partials/getGrassAttenuation.glsl;
 #include ../partials/getTimeOfDayColor.glsl;
 
@@ -49,10 +45,6 @@ void main()
 
     // Slope
     float slope = 1.0 - abs(dot(vec3(0.0, 1.0, 0.0), normal));
-
-    vec3 viewDirection = normalize(modelPosition.xyz - cameraPosition);
-    vec3 worldNormal = normalize(mat3(modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz) * normal);
-    vec3 viewNormal = normalize(normalMatrix * normal);
 
     // Color
     float elevation = terrainData.a;
@@ -108,10 +100,12 @@ void main()
     float uprush1 = uUprush1 > 0.01 ? uUprush1 + waveJitter.y * uUprushJitterScale : 0.0;
     float waveEdge = max(lapEdge, max(uprush0, uprush1));
 
-    // Wet band extends to the slowly-receding wet line; fresh waves darken it more
+    // Wet band extends to the slowly-receding wet line; fresh waves darken it more.
+    // The smooth wetness value interpolates to the fragment shader, where a step()
+    // turns it into a hard toon edge inside triangles (vertex-stepping would smear)
     float wetTarget = max(waveEdge, uWetLine);
     float wetness = (1.0 - smoothstep(wetTarget, wetTarget + 0.6, elevation)) * flatness;
-    color = mix(color, wetSandColor * 0.75, wetness * (0.55 + 0.45 * uWetFresh));
+    vec3 wetColor = mix(color, wetSandColor * 0.75, 0.42 + 0.30 * uWetFresh);
 
     // Subtle waterline foam on the sand: a stable dashed line that only moves
     // with the wave edge — the water plane carries the real foam show
@@ -122,28 +116,14 @@ void main()
 
     // Time of day tint
     color = getTimeOfDayColor(color);
+    wetColor = getTimeOfDayColor(wetColor);
 
-    // Sun shade
-    float sunShade = getSunShade(normal);
-    color = getSunShadeColor(color, sunShade);
-
-    // Sun reflection
-    float sunReflection = getSunReflection(viewDirection, worldNormal, viewNormal);
-    color = getSunReflectionColor(color, sunReflection);
-
-    // Wet-sand gloss: dedicated grazing-angle specular, strongest at golden hour
-    float sunLow = smoothstep(0.4, 0.06, uSunPosition.y) * smoothstep(- 0.1, 0.02, uSunPosition.y);
-    float wetSpec = pow(max(0.0, dot(reflect(uSunPosition, viewNormal), viewDirection)), 10.0) * (1.0 + dot(viewDirection, worldNormal));
-    float gloss = wetSpec * 1.4 * wetness * sunLow;
-    color = mix(color, vec3(1.0, 0.95, 0.85), clamp(gloss, 0.0, 1.0));
-
-    // Fog
-    vec2 screenUv = (gl_Position.xy / gl_Position.w * 0.5) + 0.5;
-    color = getFogColor(color, depth, screenUv);
-
-    // vec3 dirtColor = vec3(0.3, 0.2, 0.1);
-    // vec3 color = mix(dirtColor, grassColor, terrainData.g);
-
-    // Varyings
+    // Varyings — wet mask, sun shade, reflection, gloss and fog happen per-fragment
+    // with faceted (dFdx/dFdy) normals so every triangle gets one clean cel band
     vColor = color;
+    vWetColor = wetColor;
+    vWorldPosition = modelPosition.xyz;
+    vWetness = wetness;
+    vViewDepth = depth;
+    vClipPosition = gl_Position;
 }
