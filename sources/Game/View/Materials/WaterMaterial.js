@@ -28,7 +28,12 @@ export default function WaterMaterial()
             uShallowColor: { value: new THREE.Color('#3a6d8a') },
             uFoamColor: { value: new THREE.Color('#e8f0ee') },
             uSunPosition: { value: new THREE.Vector3(- 0.5, - 0.5, - 0.5) },
-            uFoamCellSize: { value: 3.5 },
+            uFoamEdgeWidth: { value: 1.6 },
+            uFoamLineWidth: { value: 0.55 },
+            uFoamGap: { value: 2.4 },
+            uRingPeriod: { value: 7 },
+            uRingMaxD: { value: 32 },
+            uDashLength: { value: 6 },
             uFogTexture: { value: null }
         },
         transparent: true,

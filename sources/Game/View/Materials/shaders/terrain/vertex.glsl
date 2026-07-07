@@ -113,12 +113,11 @@ void main()
     float wetness = (1.0 - smoothstep(wetTarget, wetTarget + 0.6, elevation)) * flatness;
     color = mix(color, wetSandColor * 0.75, wetness * (0.55 + 0.45 * uWetFresh));
 
-    // Subtle waterline foam on the sand: a thin, sparse, hard-edged cell line —
-    // the water plane carries the real foam show
+    // Subtle waterline foam on the sand: a stable dashed line that only moves
+    // with the wave edge — the water plane carries the real foam show
     float foamBand = 1.0 - step(0.16, abs(elevation - waveEdge));
-    vec2 foamCell = floor(modelPosition.xz / 2.2);
-    float foamRand = fract(sin(dot(foamCell, vec2(127.1, 311.7))) * 43758.5453);
-    float foam = foamBand * step(0.55, fract(foamRand + uTime * 0.12));
+    float foamRand = fract(sin(floor(modelPosition.z / 3.0) * 127.1) * 43758.5453);
+    float foam = foamBand * step(foamRand, 0.45);
     color = mix(color, vec3(0.95, 0.97, 0.96), foam * flatness * 0.55);
 
     // Time of day tint

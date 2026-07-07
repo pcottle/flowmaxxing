@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import View from '@/View/View.js'
 import State from '@/State/State.js'
+import Debug from '@/Debug/Debug.js'
 import WaterMaterial from './Materials/WaterMaterial.js'
 
 export default class Water
@@ -19,6 +20,7 @@ export default class Water
 
         this.setShoreTexture()
         this.setMaterial()
+        this.setDebug()
 
         this.mesh = new THREE.Mesh(
             this.buildOceanGeometry(),
@@ -170,6 +172,27 @@ export default class Water
         this.material.uniforms.uShoreTexture.value = this.shoreTexture
         this.material.uniforms.uWaveTexture.value = this.waveTexture
         this.material.uniforms.uFogTexture.value = this.view.sky.customRender.texture
+    }
+
+    setDebug()
+    {
+        const debug = Debug.getInstance()
+
+        if(!debug.active)
+            return
+
+        const folder = debug.ui.getFolder('view/water')
+        const uniforms = this.material.uniforms
+
+        folder.add(uniforms.uFoamEdgeWidth, 'value').min(0).max(10).step(0.1).name('uFoamEdgeWidth')
+        folder.add(uniforms.uFoamLineWidth, 'value').min(0.1).max(3).step(0.05).name('uFoamLineWidth')
+        folder.add(uniforms.uFoamGap, 'value').min(0).max(6).step(0.1).name('uFoamGap')
+        folder.add(uniforms.uRingPeriod, 'value').min(2).max(20).step(0.5).name('uRingPeriod')
+        folder.add(uniforms.uRingMaxD, 'value').min(5).max(80).step(1).name('uRingMaxD')
+        folder.add(uniforms.uDashLength, 'value').min(1).max(20).step(0.5).name('uDashLength')
+        folder.addColor(uniforms.uFoamColor, 'value').name('uFoamColor')
+        folder.addColor(uniforms.uDeepColor, 'value').name('uDeepColor')
+        folder.addColor(uniforms.uShallowColor, 'value').name('uShallowColor')
     }
 
     update()
