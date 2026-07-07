@@ -3,6 +3,7 @@ import State from '@/State/State.js'
 import View from '@/View/View.js'
 import Debug from '@/Debug/Debug.js'
 import PropsMaterial from './Materials/PropsMaterial.js'
+import PropsOutlineMaterial from './Materials/PropsOutlineMaterial.js'
 import PropsLayer from './PropsLayer.js'
 import { buildPalm, buildConifer, buildBoulder } from './PropsGeometry.js'
 
@@ -19,6 +20,20 @@ export default class Props
         this.material.uniforms.uFogTexture.value = this.view.sky.customRender.texture
         this.material.uniforms.uNoiseTexture.value = this.view.noises.create(128, 128)
 
+        // Per-family outline materials: palms collapse their frond strips
+        // (inverted hulls artifact on open geometry), others hull fully
+        this.outlineMaterials = {
+            palm: new PropsOutlineMaterial({ thickness: 0.05, swayCollapse: 0.28 }),
+            conifer: new PropsOutlineMaterial({ thickness: 0.05 }),
+            boulder: new PropsOutlineMaterial({ thickness: 0.05 })
+        }
+
+        for(const outlineMaterial of Object.values(this.outlineMaterials))
+        {
+            outlineMaterial.uniforms.uFogTexture.value = this.view.sky.customRender.texture
+            outlineMaterial.uniforms.uNoiseTexture.value = this.material.uniforms.uNoiseTexture.value
+        }
+
         this.setLayers()
         this.setDebug()
     }
@@ -30,6 +45,7 @@ export default class Props
             name: 'palm',
             geometry: buildPalm(),
             material: this.material,
+            outlineMaterial: this.outlineMaterials.palm,
             capacity: 48,
             rowSize: 24,
             perRow: 1,
@@ -55,6 +71,7 @@ export default class Props
             name: 'conifer',
             geometry: buildConifer(),
             material: this.material,
+            outlineMaterial: this.outlineMaterials.conifer,
             capacity: 1024,
             rowSize: 8,
             perRow: 6,
@@ -86,6 +103,7 @@ export default class Props
                 name: 'boulder' + variant,
                 geometry: buildBoulder(this.game.seed, variant),
                 material: this.material,
+                outlineMaterial: this.outlineMaterials.boulder,
                 capacity: 64,
                 rowSize: 16,
                 perRow: 2,
@@ -125,6 +143,12 @@ export default class Props
         this.material.uniforms.uWindTime.value = windState.windTime
         this.material.uniforms.uWindStrength.value = windState.strength
 
+        for(const outlineMaterial of Object.values(this.outlineMaterials))
+        {
+            outlineMaterial.uniforms.uWindTime.value = windState.windTime
+            outlineMaterial.uniforms.uWindStrength.value = windState.strength
+        }
+
         for(const layer of this.layers)
             layer.update()
     }
@@ -145,5 +169,27 @@ export default class Props
         }
 
         folder.add({ rebuild: () => this.layers.forEach(layer => layer.rebuild()) }, 'rebuild')
+
+        const outlinesFolder = this.debug.ui.getFolder('view/outlines')
+        const outlineProxy = {
+            thickness: this.outlineMaterials.palm.uniforms.uThickness.value,
+            visible: true
+        }
+        outlinesFolder.add(outlineProxy, 'thickness').min(0).max(0.2).step(0.005).onChange(() =>
+        {
+            for(const outlineMaterial of Object.values(this.outlineMaterials))
+                outlineMaterial.uniforms.uThickness.value = outlineProxy.thickness
+        })
+        outlinesFolder.add(outlineProxy, 'visible').onChange(() =>
+        {
+            for(const layer of this.layers)
+                if(layer.outlineMesh)
+                    layer.outlineMesh.visible = outlineProxy.visible
+        })
+        outlinesFolder.addColor(this.outlineMaterials.palm.uniforms.uColor, 'value').name('color').onChange(() =>
+        {
+            this.outlineMaterials.conifer.uniforms.uColor.value.copy(this.outlineMaterials.palm.uniforms.uColor.value)
+            this.outlineMaterials.boulder.uniforms.uColor.value.copy(this.outlineMaterials.palm.uniforms.uColor.value)
+        })
     }
 }

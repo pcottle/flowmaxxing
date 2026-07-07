@@ -16,8 +16,10 @@ void main()
     vec3 direction = normalize(vPosition);
 
     // Planar projection keeps cloud shapes stable overhead; drift via time only
-    // (the dome is rotation-locked to the camera, which is correct)
-    vec2 uv = direction.xz / (direction.y + 0.35) * uCloudScale;
+    // (the dome is rotation-locked to the camera, which is correct).
+    // The larger denominator flattens the projection near the horizon so
+    // low clouds don't stretch and sweep when the view turns
+    vec2 uv = direction.xz / (direction.y + 0.6) * uCloudScale;
     uv += uTime * uDriftSpeed;
 
     // Two big octaves for chunky puff shapes, near-step edge for the toon look.
@@ -32,8 +34,9 @@ void main()
     float fbmUp = perlin2d(uvUp) * 0.65 + perlin2d(uvUp * 2.3 + 5.0) * 0.35;
     float underside = density * (1.0 - smoothstep(uCoverage + 0.03, uCoverage + 0.045, fbmUp + 0.5));
 
-    // Fade at the horizon so the fog gradient below stays clean
-    float horizonFade = smoothstep(0.04, 0.14, direction.y);
+    // Fade well above the horizon: clouds live high overhead, which reads as
+    // distant and keeps them out of the fast-sweeping horizon band
+    float horizonFade = smoothstep(0.1, 0.28, direction.y);
 
     // Day/night brightness from sun height; flat two-tone body
     float day = smoothstep(- 0.25, 0.1, uSunPosition.y);

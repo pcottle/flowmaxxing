@@ -22,6 +22,7 @@ uniform float uWetFresh;
 
 varying vec3 vColor;
 varying vec3 vWetColor;
+varying vec3 vNormal;
 varying vec3 vWorldPosition;
 varying float vWetness;
 varying float vViewDepth;
@@ -119,9 +120,10 @@ void main()
     wetColor = getTimeOfDayColor(wetColor);
 
     // Varyings — wet mask, sun shade, reflection, gloss and fog happen per-fragment
-    // with faceted (dFdx/dFdy) normals so every triangle gets one clean cel band
+    // (smooth interpolated normal; the hard toon edge comes from stepping vWetness)
     vColor = color;
     vWetColor = wetColor;
+    vNormal = normal;
     vWorldPosition = modelPosition.xyz;
     vWetness = wetness;
     vViewDepth = depth;

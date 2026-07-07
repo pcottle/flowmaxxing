@@ -28,12 +28,16 @@ void main()
     float progress = age / aLifetime;
 
     // Damped outward drift with a slight upward float (wind streaks),
-    // or a ballistic arc under gravity (spray puffs)
+    // a ballistic arc under gravity (spray puffs), or straight steady
+    // drift (ambient wind curls)
     float aliveProgress = clamp(progress, 0.0, 1.0);
+    float isPuff = step(0.5, aType) * step(aType, 1.5);
+    float isCurl = step(1.5, aType);
     vec3 driftPosition = position + aVelocity * age * (1.0 - aliveProgress * 0.45);
     driftPosition.y += age * 0.55;
     vec3 ballisticPosition = position + aVelocity * age + vec3(0.0, - 4.5, 0.0) * age * age;
-    vec3 newPosition = mix(driftPosition, ballisticPosition, aType);
+    vec3 newPosition = mix(driftPosition, ballisticPosition, isPuff);
+    newPosition = mix(newPosition, position + aVelocity * age, isCurl);
 
     vec4 viewPosition = viewMatrix * modelMatrix * vec4(newPosition, 1.0);
     gl_Position = projectionMatrix * viewPosition;
@@ -41,8 +45,9 @@ void main()
     vec4 projectedHead = projectionMatrix * viewMatrix * modelMatrix * vec4(newPosition + velocityDirection * 0.35, 1.0);
     vec2 projectedDirection = projectedHead.xy / projectedHead.w - gl_Position.xy / gl_Position.w;
 
-    // Grow over life, perspective attenuation
-    gl_PointSize = aSize * mix(0.7, 1.35, aliveProgress) * uSizeScale / - viewPosition.z;
+    // Grow over life (curls hold their size), perspective attenuation
+    float growth = mix(mix(0.7, 1.35, aliveProgress), 1.0, isCurl);
+    gl_PointSize = aSize * growth * uSizeScale / - viewPosition.z;
 
     // Clip out dead particles
     if(progress >= 1.0 || progress < 0.0)

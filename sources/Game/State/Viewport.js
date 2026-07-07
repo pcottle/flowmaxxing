@@ -18,16 +18,10 @@ export default class Viewport
         this.clampedPixelRatio = null
 
         this.setPointerLock()
-        this.setFullscreen()
 
         this.controls.events.on('pointerLockDown', () =>
         {
             this.pointerLock.toggle()
-        })
-
-        this.controls.events.on('fullscreenDown', () =>
-        {
-            this.fullscreen.toggle()
         })
 
         this.resize()
@@ -59,35 +53,6 @@ export default class Viewport
         document.addEventListener('pointerlockchange', () =>
         {
             this.pointerLock.active = !!document.pointerLockElement
-        })
-    }
-
-    setFullscreen()
-    {
-        this.fullscreen = {}
-        this.fullscreen.active = false
-        
-        this.fullscreen.toggle = () =>
-        {
-            if(this.fullscreen.active)
-                this.fullscreen.deactivate()
-            else
-                this.fullscreen.activate()
-        }
-        
-        this.fullscreen.activate = () =>
-        {
-            this.domElement.requestFullscreen()
-        }
-
-        this.fullscreen.deactivate = () =>
-        {
-            document.exitFullscreen()
-        }
-        
-        document.addEventListener('fullscreenchange', () =>
-        {
-            this.fullscreen.active = !!document.fullscreenElement
         })
     }
 

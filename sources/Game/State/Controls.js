@@ -57,10 +57,6 @@ export default class Controls
                 name: 'debug'
             },
             {
-                codes: [ 'KeyF' ],
-                name: 'fullscreen'
-            },
-            {
                 codes: [ 'Space' ],
                 name: 'jump'
             },

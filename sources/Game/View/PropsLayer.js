@@ -28,6 +28,16 @@ export default class PropsLayer
         this.mesh.frustumCulled = false
         this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
 
+        // Inverted-hull outline: same geometry, same instance matrices (shared
+        // attribute — zero extra upkeep), BackSide dark shell
+        if(options.outlineMaterial)
+        {
+            this.outlineMesh = new THREE.InstancedMesh(options.geometry, options.outlineMaterial, options.capacity)
+            this.outlineMesh.count = 0
+            this.outlineMesh.frustumCulled = false
+            this.outlineMesh.instanceMatrix = this.mesh.instanceMatrix
+        }
+
         this.dummy = new THREE.Object3D()
         this.tintColor = new THREE.Color()
 
@@ -37,6 +47,9 @@ export default class PropsLayer
         this.retryTimer = 0
 
         this.view.scene.add(this.mesh)
+
+        if(this.outlineMesh)
+            this.view.scene.add(this.outlineMesh)
     }
 
     update()
@@ -142,6 +155,9 @@ export default class PropsLayer
 
         this.mesh.count = index
         this.mesh.instanceMatrix.needsUpdate = true
+
+        if(this.outlineMesh)
+            this.outlineMesh.count = index
 
         if(colliders)
             this.state.propsColliders.setGroup(options.name, colliders)

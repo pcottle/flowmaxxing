@@ -11,10 +11,10 @@ export default function CloudsMaterial()
             uTime: { value: 0 },
             uSunPosition: { value: new THREE.Vector3(- 0.5, - 0.5, - 0.5) },
             uColorSun: { value: new THREE.Color('#ffa54a') },
-            uCloudScale: { value: 1.1 },
-            uCoverage: { value: 0.78 },
+            uCloudScale: { value: 0.55 },
+            uCoverage: { value: 0.72 },
             uSoftness: { value: 0.35 },
-            uDriftSpeed: { value: new THREE.Vector2(0.008, 0.003) },
+            uDriftSpeed: { value: new THREE.Vector2(0.003, 0.001) },
             uOpacity: { value: 0.92 }
         },
         transparent: true,

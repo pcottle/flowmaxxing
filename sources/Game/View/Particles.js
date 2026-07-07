@@ -22,6 +22,7 @@ export default class Particles
         this.count = 512 // spray shares the ring buffer with jump/land bursts
         this.index = 0
         this.sprayTimer = 0
+        this.curlTimer = 1.5
         this.setGeometry()
         this.setMaterial()
         this.setPoints()
@@ -262,6 +263,44 @@ export default class Particles
         types.needsUpdate = true
     }
 
+    // Ambient Wind Waker wind curl: a white spiral glyph drifting down-beach
+    spawnCurl(origin)
+    {
+        const positions = this.geometry.attributes.position
+        const velocities = this.geometry.attributes.aVelocity
+        const spawnTimes = this.geometry.attributes.aSpawnTime
+        const lifetimes = this.geometry.attributes.aLifetime
+        const sizes = this.geometry.attributes.aSize
+        const rotations = this.geometry.attributes.aRotation
+        const stretches = this.geometry.attributes.aStretch
+        const types = this.geometry.attributes.aType
+
+        positions.setXYZ(this.index, origin[0], origin[1], origin[2])
+        velocities.setXYZ(
+            this.index,
+            (Math.random() - 0.5) * 1.5,
+            (Math.random() - 0.3) * 0.4,
+            - 4 - Math.random() * 4 // down-beach (-Z) wind
+        )
+        spawnTimes.setX(this.index, this.time.elapsed)
+        lifetimes.setX(this.index, 3.2 + Math.random() * 1.6)
+        sizes.setX(this.index, 22 + Math.random() * 10)
+        rotations.setX(this.index, 0)
+        stretches.setX(this.index, 1.25)
+        types.setX(this.index, 2)
+
+        this.index = (this.index + 1) % this.count
+
+        positions.needsUpdate = true
+        velocities.needsUpdate = true
+        spawnTimes.needsUpdate = true
+        lifetimes.needsUpdate = true
+        sizes.needsUpdate = true
+        rotations.needsUpdate = true
+        stretches.needsUpdate = true
+        types.needsUpdate = true
+    }
+
     update()
     {
         const playerState = this.state.player
@@ -294,6 +333,30 @@ export default class Particles
                         this.spawnSpray(6, [x, 0.6 + set.amplitude, z])
                     }
                 }
+            }
+        }
+
+        // Ambient wind curls drifting down the corridor, stronger wind = more
+        this.curlTimer -= this.time.delta
+
+        if(this.curlTimer <= 0)
+        {
+            const windStrength = this.state.wind ? this.state.wind.strength : 0.5
+            this.curlTimer = 3.0 - windStrength * 1.5 + Math.random() * 1.5
+
+            const curlCount = 1 + Math.round(Math.random() * windStrength)
+
+            for(let i = 0; i < curlCount; i++)
+            {
+                const playerPosition = playerState.position.current
+                const angle = Math.random() * Math.PI * 2
+                const radius = 20 + Math.random() * 40
+                const x = playerPosition[0] + Math.sin(angle) * radius
+                const z = playerPosition[2] + Math.cos(angle) * radius + 20 // bias upwind (+Z) so curls drift across the view
+                const groundY = this.state.chunks.getElevationForPosition(x, z)
+                const y = (groundY === false ? playerPosition[1] : Math.max(groundY, 0)) + 1.5 + Math.random() * 6
+
+                this.spawnCurl([x, y, z])
             }
         }
     }
