@@ -24,8 +24,8 @@ export default class Audio
         this.glideVolume = 0.05
         this.flowPadVolume = 0.04
         this.susVolume = 0.045
-        this.surfVolume = 0.06
-        this.crashVolume = 0.12
+        this.surfVolume = 0.3
+        this.crashVolume = 0.4
 
         // Two-octave A pentatonic scales: minor at night, major by day
         this.scales = {}
@@ -509,6 +509,64 @@ export default class Audio
         spray.stop(now + 0.3)
     }
 
+    playWaveCrash(intensity)
+    {
+        if(!this.ready)
+            return
+
+        const now = this.context.currentTime
+        const peak = this.crashVolume * intensity
+
+        if(peak < 0.001)
+            return
+
+        // The crash proper: noise swelling in slowly (crashes aren't clicks)
+        // through a lowpass that darkens as the whitewater collapses
+        const body = this.context.createBufferSource()
+        body.buffer = this.getNoiseBuffer()
+        body.loop = true
+
+        const bodyFilter = this.context.createBiquadFilter()
+        bodyFilter.type = 'lowpass'
+        bodyFilter.Q.value = 0.9
+        bodyFilter.frequency.setValueAtTime(1600, now)
+        bodyFilter.frequency.exponentialRampToValueAtTime(350, now + 2)
+
+        const bodyGain = this.context.createGain()
+        bodyGain.gain.setValueAtTime(0, now)
+        bodyGain.gain.linearRampToValueAtTime(peak, now + 0.18)
+        bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5)
+
+        body.connect(bodyFilter)
+        bodyFilter.connect(bodyGain)
+        bodyGain.connect(this.masterGain)
+        bodyGain.connect(this.reverb.input)
+        body.start(now)
+        body.stop(now + 2.6)
+
+        // A short high band for the initial spray bite
+        const spray = this.context.createBufferSource()
+        spray.buffer = this.getNoiseBuffer()
+        spray.loop = true
+
+        const sprayFilter = this.context.createBiquadFilter()
+        sprayFilter.type = 'bandpass'
+        sprayFilter.Q.value = 0.8
+        sprayFilter.frequency.value = 3000
+
+        const sprayGain = this.context.createGain()
+        sprayGain.gain.setValueAtTime(0, now)
+        sprayGain.gain.linearRampToValueAtTime(peak * 0.3, now + 0.08)
+        sprayGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4)
+
+        spray.connect(sprayFilter)
+        sprayFilter.connect(sprayGain)
+        sprayGain.connect(this.masterGain)
+        sprayGain.connect(this.reverb.input)
+        spray.start(now)
+        spray.stop(now + 0.45)
+    }
+
     playWhoosh({ startFrequency = 400, endFrequency = 1800, duration = 0.45, volume = null, glint = true } = {})
     {
         if(!this.ready)
@@ -620,29 +678,42 @@ export default class Audio
             this.groundedTime = 0
         }
 
-        // A low root pluck as each wave breaks nearby: the ocean keeps time
+        // The ocean keeps time: a continuous surf wash near the sand, plus a
+        // crash and a low root pluck as each wave breaks nearby
         const waveSets = this.state.waveSets
 
         if(waveSets)
         {
+            const breakX = this.state.terrains.getShoreX(playerState.position.current[2]) + waveSets.DBreak
+            const distance = Math.abs(playerState.position.current[0] - breakX)
+            const attenuation = Math.max(0, 1 - distance / 140)
+
+            // Surf bed swells as a set shoals in and peaks while the
+            // whitewater bore rushes up; squared proximity still favors the
+            // beach but carries well inland
+            const proximity = Math.max(0, 1 - distance / 110)
+            let activity = 0
+
+            for(const set of waveSets.sets)
+                activity += set.foamIntensity + Math.max(0, set.amplitude * (1 - set.frontD / 40))
+
+            activity = Math.min(activity, 1)
+
+            this.surf.gain.gain.setTargetAtTime(this.surfVolume * proximity * proximity * (0.35 + activity * 0.65), now, 0.5)
+            this.surf.filter.frequency.setTargetAtTime(500 + activity * 400, now, 0.5)
+
             for(let i = 0; i < waveSets.sets.length; i++)
             {
                 const set = waveSets.sets[i]
                 const broke = set.foamIntensity > 0 && !(this.waveFoamPrev[i] > 0)
                 this.waveFoamPrev[i] = set.foamIntensity
 
-                if(!broke || this.time.elapsed < this.nextWavePluckTime)
-                    continue
-
-                const breakX = this.state.terrains.getShoreX(playerState.position.current[2]) + waveSets.DBreak
-                const distance = Math.abs(playerState.position.current[0] - breakX)
-                const attenuation = Math.max(0, 1 - distance / 80)
-
-                if(attenuation < 0.05)
+                if(!broke || this.time.elapsed < this.nextWavePluckTime || attenuation < 0.05)
                     continue
 
                 this.nextWavePluckTime = this.time.elapsed + 2
                 this.playChime(110, this.chimeVolume * 0.5 * attenuation * (0.5 + set.baseAmplitude * 0.7), 3.5)
+                this.playWaveCrash(attenuation * (0.4 + set.baseAmplitude * 0.8))
             }
         }
 
@@ -697,6 +768,8 @@ export default class Audio
         folder.add(this, 'glideVolume').min(0).max(0.2).step(0.005)
         folder.add(this, 'flowPadVolume').min(0).max(0.15).step(0.005)
         folder.add(this, 'susVolume').min(0).max(0.15).step(0.005)
+        folder.add(this, 'surfVolume').min(0).max(0.6).step(0.01)
+        folder.add(this, 'crashVolume').min(0).max(0.8).step(0.01)
         folder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
         {
             if(this.ready)
