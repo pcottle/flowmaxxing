@@ -17,13 +17,13 @@ export default class Audio
         this.ready = false
         this.muted = false
         this.masterVolume = 0.35
-        this.windVolume = 0.12
+        this.windVolume = 0.05
         this.padVolume = 0.05
-        this.chimeVolume = 0.08
+        this.chimeVolume = 0.1
         this.reverbVolume = 0.4
-        this.glideVolume = 0.04
-        this.flowPadVolume = 0.03
-        this.susVolume = 0.035
+        this.glideVolume = 0.05
+        this.flowPadVolume = 0.04
+        this.susVolume = 0.045
 
         // Two-octave A pentatonic scales: minor at night, major by day
         this.scales = {}
@@ -542,12 +542,14 @@ export default class Audio
         const sunState = this.state.sun
         const now = this.context.currentTime
 
-        // Wind follows player speed and gusts, and roars while falling fast
-        const speedNorm = Math.min(playerState.horizontalSpeed / 30, 1)
+        // Wind follows player speed and gusts, and swells while falling fast.
+        // Squared speed curve keeps it a whisper at cruising pace and only
+        // lets it breathe at genuinely high speed
+        const speedNorm = Math.min(playerState.horizontalSpeed / 40, 1)
         const fallNorm = playerState.velocity[1] < 0 ? Math.min(- playerState.velocity[1] / 25, 1) : 0
-        const windAmount = Math.min(0.3 + speedNorm * 0.7 + windState.strength * 0.5 + fallNorm * 0.6, 1.5)
-        this.wind.filter.frequency.setTargetAtTime(300 + windAmount * 1200, now, 0.3)
-        this.wind.gain.gain.setTargetAtTime(this.windVolume * windAmount, now, 0.3)
+        const windAmount = Math.min(0.25 + speedNorm * speedNorm * 0.55 + windState.strength * 0.35 + fallNorm * 0.4, 1)
+        this.wind.filter.frequency.setTargetAtTime(300 + windAmount * 900, now, 0.4)
+        this.wind.gain.gain.setTargetAtTime(this.windVolume * windAmount, now, 0.4)
 
         // Crossfade pad voicings with the day cycle
         const dayness = Math.min(Math.max(sunState.position.y * 4 + 0.5, 0), 1)
