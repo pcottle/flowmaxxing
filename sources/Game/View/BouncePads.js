@@ -33,9 +33,11 @@ export default class BouncePads
         this.prizes = []
 
         // Aim shadow: no lights in this renderer, so a blob shadow on the pad
-        // surface shows where the player will land while falling toward it
-        this.shadowGeometry = new THREE.CircleGeometry(1, 20)
-        this.shadowGeometry.rotateX(- Math.PI * 0.5)
+        // surface shows where the player will land while falling toward it.
+        // A squat cylinder, not a flat disc — the orbit camera sits barely
+        // above horizontal, and mid-jump a disc foreshortens to an invisible
+        // sliver; the puck's side band stays readable edge-on
+        this.shadowGeometry = new THREE.CylinderGeometry(1, 1, 0.22, 20, 1)
         this.shadowMaterial = new THREE.MeshBasicMaterial({
             color: '#10222b',
             transparent: true,
@@ -315,8 +317,10 @@ export default class BouncePads
 
         const player = this.state.player
         const playerX = player.position.current[0]
+        const playerY = player.position.current[1]
         const playerZ = player.position.current[2]
-        const height = player.position.current[1] - shadowPad.position[1]
+        const padY = shadowPad.position[1]
+        const height = playerY - padY
         const rimDistance = Math.hypot(playerX - shadowPad.position[0], playerZ - shadowPad.position[2])
 
         // Size tells altitude (shrinks as the player rises), opacity stays
@@ -324,10 +328,11 @@ export default class BouncePads
         // shadow reads as how centered the landing is
         const heightRatio = 1 - Math.min(height / 28, 1)
         const rimFade = Math.min(Math.max((shadowPad.radius - rimDistance) / 0.6, 0), 1)
+        const radius = 0.55 + 0.45 * heightRatio
 
         this.shadow.visible = true
-        this.shadow.position.set(playerX, shadowPad.position[1] + 0.12, playerZ)
-        this.shadow.scale.setScalar(0.55 + 0.45 * heightRatio)
+        this.shadow.position.set(playerX, padY + 0.23, playerZ)
+        this.shadow.scale.set(radius, 1, radius)
         this.shadow.material.opacity = rimFade * 0.55
     }
 

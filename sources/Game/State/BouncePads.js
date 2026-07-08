@@ -35,7 +35,7 @@ export default class BouncePads
         // Tuning bounds: launchBase^2 / 56 must exceed verticalGap + 1 so every
         // gap is reachable, and (launchBase * jumpCutRatio)^2 / 56 must stay
         // under verticalGap so a cut bounce falls back onto the same pad
-        this.launchBase = 16
+        this.launchBase = 19
         this.launchPerIndex = 0.5
         this.perfectBonusRatio = 1.12
         this.padCooldown = 0.35

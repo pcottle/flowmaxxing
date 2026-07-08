@@ -50,6 +50,10 @@ export default class Player
         this.jumpCount = 0
         this.jumpKeyReleased = true
 
+        // While flying off a bounce pad the air jump matches the pad's power,
+        // so a mistimed bounce can be corrected mid-air. Cleared on landing
+        this.padJumpVelocity = 0
+
         // Terrain momentum: carry the vertical velocity implied by ground-following
         // so crests launch the player instead of tracking them onto the backslope.
         // The terrain sampler is faceted (piecewise-planar triangles), so the carried
@@ -248,7 +252,8 @@ export default class Player
         {
             // jumpCount 0 here means airborne from a crest launch, not a jump:
             // still grant the one air jump
-            this.velocity[1] = this.jumpVelocity * this.doubleJumpRatio
+            this.velocity[1] = Math.max(this.jumpVelocity * this.doubleJumpRatio, this.padJumpVelocity)
+            this.padJumpVelocity = 0
             this.jumpCount = 2
             this.jumpKeyReleased = false
             this.events.emit('jump', this.jumpCount)
@@ -289,6 +294,7 @@ export default class Player
         this.airTime = 0
         this.jumpCount = Math.min(this.jumpCount, 1)
         this.velocity[1] = verticalVelocity
+        this.padJumpVelocity = verticalVelocity
     }
 
     getTerrainGradient(sample)
@@ -661,6 +667,7 @@ export default class Player
                 this.grounded = true
                 this.swimming = true
                 this.diving = false
+                this.padJumpVelocity = 0
 
                 if(this.airTime > this.landEventMinAirTime)
                     this.events.emit('splash', impactSpeed)
@@ -714,6 +721,7 @@ export default class Player
                     this.velocity[1] = 0
                     this.grounded = true
                     this.diving = false
+                    this.padJumpVelocity = 0
 
                     // Micro-skims stay silent (no chime, particles or squash)
                     if(this.airTime > this.landEventMinAirTime)

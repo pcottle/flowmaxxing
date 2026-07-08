@@ -29,7 +29,7 @@ export default class CameraThirdPerson
         // stay in view; decays back so it never fights pointer control.
         // Bound lazily: bouncePads is constructed after the player's camera
         this.bounceTilt = 0
-        this.bounceTiltMax = 0.2
+        this.bounceTiltMax = 0.3
         this.bounceTiltDecayRate = 0.9
         this.padEventsBound = false
     }
@@ -53,7 +53,7 @@ export default class CameraThirdPerson
 
             this.state.bouncePads.events.on('padBounce', ({ index }) =>
             {
-                const amount = index === 0 ? 0.14 : 0.08
+                const amount = index === 0 ? 0.24 : 0.08
                 this.bounceTilt = Math.min(this.bounceTilt + amount, this.bounceTiltMax)
             })
         }
