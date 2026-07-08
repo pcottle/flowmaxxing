@@ -20,14 +20,16 @@ export default class ObstacleCourses
         this.minSpeed = 11
         this.minForwardRatio = 0.62
         this.minStableDot = 0.965
-        this.triggerTime = 4.25
-        this.cooldown = 14
+        this.triggerTime = 6
+        this.cooldown = 24
         this.cooldownTimer = 5
+        this.blockedCourseCooldown = 6
 
         this.ringCountMin = 5
         this.ringCountMax = 25
         this.startDistance = 44
         this.spacing = 13
+        this.bouncePadAvoidRadius = 16
         this.lateralAmplitude = 4.5
         this.trickLateralDistance = 9
         this.firstRingHeight = 2.15
@@ -35,6 +37,7 @@ export default class ObstacleCourses
         this.heightAmplitude = 1.9
         this.maxRingClimb = 1.25
         this.collectRadius = 2.35
+        this.ringJumpVelocity = 14
         this.missDistance = 7
         this.courseEndDistance = 30
         this.expireDelay = 1.4
@@ -164,6 +167,30 @@ export default class ObstacleCourses
         return types
     }
 
+    overlapsBouncePadCourse(x, z)
+    {
+        const bouncePads = this.state.bouncePads
+
+        if(!bouncePads)
+            return false
+
+        for(const tower of bouncePads.towers.values())
+        {
+            if(!tower.built)
+                continue
+
+            for(const pad of tower.pads)
+            {
+                const clearance = this.bouncePadAvoidRadius + pad.radius
+
+                if(Math.hypot(x - pad.position[0], z - pad.position[2]) < clearance)
+                    return true
+            }
+        }
+
+        return false
+    }
+
     createCourse(player)
     {
         const chunks = this.state.chunks
@@ -199,6 +226,16 @@ export default class ObstacleCourses
 
             if(elevation === false || !Number.isFinite(elevation))
                 return false
+
+            if(this.overlapsBouncePadCourse(x, z))
+            {
+                if(rings.length >= this.ringCountMin)
+                    break
+
+                this.straightTimer = 0
+                this.cooldownTimer = this.blockedCourseCooldown
+                return false
+            }
 
             const type = types[i]
             const rollDirection = type === 'roll' ? trickDirection : 0
@@ -303,7 +340,7 @@ export default class ObstacleCourses
     {
         ring.collected = true
         ring.collectTime = this.time.elapsed
-        player.refillJumpFromRing(this.course.direction)
+        player.refillJumpFromRing(this.course.direction, this.ringJumpVelocity)
 
         this.events.emit('ringCollect', {
             course: this.course,
@@ -409,10 +446,13 @@ export default class ObstacleCourses
         folder.add(this, 'minForwardRatio').min(0).max(1).step(0.01)
         folder.add(this, 'triggerTime').min(0).max(12).step(0.1)
         folder.add(this, 'cooldown').min(0).max(60).step(1)
+        folder.add(this, 'blockedCourseCooldown').min(0).max(30).step(1)
         folder.add(this, 'spacing').min(5).max(24).step(0.5)
         folder.add(this, 'startDistance').min(20).max(80).step(1)
+        folder.add(this, 'bouncePadAvoidRadius').min(0).max(40).step(0.5)
         folder.add(this, 'trickLateralDistance').min(3).max(18).step(0.5)
         folder.add(this, 'collectRadius').min(0.5).max(5).step(0.05)
+        folder.add(this, 'ringJumpVelocity').min(0).max(30).step(0.1)
         folder.add(this, 'firstRingHeight').min(0.5).max(6).step(0.05)
         folder.add(this, 'heightBase').min(1).max(10).step(0.1)
         folder.add(this, 'maxRingClimb').min(0.25).max(4).step(0.05)

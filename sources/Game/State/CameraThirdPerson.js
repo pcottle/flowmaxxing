@@ -25,12 +25,14 @@ export default class CameraThirdPerson
         this.positionInitialised = false
         this.autoTurnRate = 1.2
 
-        // Transient look-down after a bounce pad launch so the pads below
-        // stay in view; decays back so it never fights pointer control.
+        // Held look-down after bounce pad launches so the next spiral pads
+        // stay in view through the whole tower sequence.
         // Bound lazily: bouncePads is constructed after the player's camera
         this.bounceTilt = 0
-        this.bounceTiltMax = 0.3
-        this.bounceTiltDecayRate = 0.9
+        this.bounceTiltMax = 0.58
+        this.bounceTiltHold = 2.8
+        this.bounceTiltSpringRate = 7
+        this.bounceTiltUntil = - 999
         this.padEventsBound = false
     }
 
@@ -51,14 +53,15 @@ export default class CameraThirdPerson
         {
             this.padEventsBound = true
 
-            this.state.bouncePads.events.on('padBounce', ({ index }) =>
+            this.state.bouncePads.events.on('padBounce', () =>
             {
-                const amount = index === 0 ? 0.24 : 0.08
-                this.bounceTilt = Math.min(this.bounceTilt + amount, this.bounceTiltMax)
+                this.bounceTiltUntil = this.state.time.elapsed + this.bounceTiltHold
             })
         }
 
-        this.bounceTilt *= Math.exp(- this.bounceTiltDecayRate * this.state.time.delta)
+        const time = this.state.time
+        const targetBounceTilt = time.elapsed < this.bounceTiltUntil ? this.bounceTiltMax : 0
+        this.bounceTilt += (targetBounceTilt - this.bounceTilt) * (1 - Math.exp(- this.bounceTiltSpringRate * time.delta))
 
         if(!this.active)
             return

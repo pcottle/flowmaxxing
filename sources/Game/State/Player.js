@@ -24,6 +24,7 @@ export default class Player
 
         // Momentum
         this.accelerationRate = 4
+        this.brakingRate = 9
         this.dampingRate = 1.5
         this.airControlRatio = 0.35
         this.rotationLerpRate = 7
@@ -50,8 +51,8 @@ export default class Player
         this.jumpCount = 0
         this.jumpKeyReleased = true
 
-        // While flying off a bounce pad the air jump matches the pad's power,
-        // so a mistimed bounce can be corrected mid-air. Cleared on landing
+        // While flying off a bounce pad or ring reward, the air jump can use
+        // that stronger launch power. Cleared on landing.
         this.padJumpVelocity = 0
 
         // Terrain momentum: carry the vertical velocity implied by ground-following
@@ -260,11 +261,12 @@ export default class Player
         }
     }
 
-    refillJumpFromRing(direction)
+    refillJumpFromRing(direction, jumpVelocity = 0)
     {
         if(!this.grounded)
         {
             this.jumpCount = Math.min(this.jumpCount, 1)
+            this.padJumpVelocity = Math.max(this.padJumpVelocity, jumpVelocity)
 
             if(this.velocity[1] < 1.5)
                 this.velocity[1] = 1.5
@@ -430,20 +432,31 @@ export default class Player
 
         if(hasInput)
         {
+            const inputX = - Math.sin(inputRotation)
+            const inputZ = - Math.cos(inputRotation)
             const maxSpeed = (this.dashTimer > 0 ? this.inputSpeed + this.dashSustainSpeed : this.inputSpeed) * moveScale * (1 + this.flow * this.flowSpeedBonus)
             const control = this.grounded || this.dashTimer > 0 ? 1 : this.airControlRatio
             const steerRate = this.carving ? this.accelerationRate * this.carveSteerBoost : this.accelerationRate
             const ratio = 1 - Math.exp(- steerRate * control * delta)
+            const targetX = inputX * maxSpeed
+            const targetZ = inputZ * maxSpeed
+            const movingAgainstInput = this.grounded && currentSpeed > 0.5 && this.velocity[0] * inputX + this.velocity[2] * inputZ < 0
 
-            if(currentSpeed > maxSpeed)
+            if(movingAgainstInput)
+            {
+                const brakingRatio = 1 - Math.exp(- this.brakingRate * delta)
+                this.velocity[0] += (targetX - this.velocity[0]) * brakingRatio
+                this.velocity[2] += (targetZ - this.velocity[2]) * brakingRatio
+            }
+            else if(currentSpeed > maxSpeed)
             {
                 // Above input speed (dash, skiing): steer the direction but keep the
                 // momentum, decaying the excess gently instead of at accelerationRate.
                 // Carving (crouch held) steers tighter and bleeds even less speed
                 let directionX = this.velocity[0] / currentSpeed
                 let directionZ = this.velocity[2] / currentSpeed
-                directionX += (- Math.sin(inputRotation) - directionX) * ratio
-                directionZ += (- Math.cos(inputRotation) - directionZ) * ratio
+                directionX += (inputX - directionX) * ratio
+                directionZ += (inputZ - directionZ) * ratio
 
                 const directionLength = Math.hypot(directionX, directionZ)
                 const decayRate = this.carving ? this.overspeedDecayRate * this.carveOverspeedKeep : this.overspeedDecayRate
@@ -457,8 +470,6 @@ export default class Player
             }
             else
             {
-                const targetX = - Math.sin(inputRotation) * maxSpeed
-                const targetZ = - Math.cos(inputRotation) * maxSpeed
                 this.velocity[0] += (targetX - this.velocity[0]) * ratio
                 this.velocity[2] += (targetZ - this.velocity[2]) * ratio
             }
@@ -753,6 +764,7 @@ export default class Player
 
         folder.add(this, 'inputSpeed').min(0).max(50).step(0.1)
         folder.add(this, 'accelerationRate').min(0).max(20).step(0.1)
+        folder.add(this, 'brakingRate').min(0).max(30).step(0.1)
         folder.add(this, 'dampingRate').min(0).max(10).step(0.05)
         folder.add(this, 'airControlRatio').min(0).max(1).step(0.01)
         folder.add(this, 'rotationLerpRate').min(0).max(30).step(0.1)
