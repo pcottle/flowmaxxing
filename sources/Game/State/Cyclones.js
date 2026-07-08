@@ -20,10 +20,14 @@ export default class Cyclones
 
         // Anchors are deterministic landmarks (seeded by index) staggered
         // against the bounce towers (300 + 420k); the wander below is a pure
-        // function of (seed, elapsed) so despawn/rebuild is idempotent
-        this.interval = 760
-        this.firstOffset = 520
+        // function of (seed, elapsed) so despawn/rebuild is idempotent.
+        // Sparse on purpose — finding one should feel like an event
+        this.interval = 1800
+        this.firstOffset = 900
         this.keepDistance = 600
+
+        // How far up the foothills they live: 0 = shoreline, 1 = mountain start
+        this.inlandRatio = 0.75
 
         this.radius = 2.4
         this.height = 11
@@ -103,11 +107,16 @@ export default class Cyclones
         const anchorZ = cyclone.z + Math.sin(t * 0.8 + cyclone.phaseZ) * cyclone.wanderRadius * 1.6
         const shoreX = terrains.getShoreX(anchorZ)
 
-        // Anchor mid-beach, then clamp onto the sand band so the shoreline
-        // meander can never strand the cyclone in deep water or up the hills
-        let x = shoreX - terrains.corridor.beachWidth * 0.55 + cyclone.jitter
+        // Anchor up in the foothills (mountains are -X of the shore), clamped
+        // between the back of the beach and the mountain start so the
+        // shoreline meander can never strand it in the water or the peaks
+        const inland = terrains.corridor.mountainStartDistance * this.inlandRatio
+        let x = shoreX - inland + cyclone.jitter
             + Math.cos(t + cyclone.phaseX) * cyclone.wanderRadius
-        x = Math.min(Math.max(x, shoreX - terrains.corridor.beachWidth * 1.1), shoreX - 1)
+        x = Math.min(
+            Math.max(x, shoreX - terrains.corridor.mountainStartDistance),
+            shoreX - terrains.corridor.beachWidth * 1.5
+        )
 
         const elevation = this.state.chunks.getElevationForPosition(x, anchorZ)
 
@@ -194,6 +203,8 @@ export default class Cyclones
 
         folder.add(this, 'enabled')
         folder.add(this, 'launchVelocity').min(10).max(70).step(0.5)
+        folder.add(this, 'interval').min(400).max(4000).step(100)
+        folder.add(this, 'inlandRatio').min(0.2).max(1).step(0.05)
         folder.add(this, 'forwardCarry').min(0).max(20).step(0.5)
         folder.add(this, 'radius').min(1).max(6).step(0.1)
         folder.add(this, 'height').min(4).max(24).step(0.5)

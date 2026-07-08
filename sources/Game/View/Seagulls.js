@@ -204,10 +204,14 @@ export default class Seagulls
         const elapsed = this.time.elapsed
         const playerState = this.state.player
 
-        // Gulls roost at night: shrink away as the sun sets, skip all work
-        // while they're gone
+        // Gulls are beach birds on a day shift: they shrink away at night and
+        // whenever the player heads inland toward the mountains, and all the
+        // per-frame work is skipped while they're gone
         const dayFactor = THREE.MathUtils.smoothstep(this.state.sun.position.y, - 0.02, 0.12)
-        const flockVisible = dayFactor > 0.01
+        const inlandDistance = this.state.terrains.getShoreX(playerState.position.current[2]) - playerState.position.current[0]
+        const beachFactor = 1 - THREE.MathUtils.smoothstep(inlandDistance, 25, 60)
+        const presence = dayFactor * beachFactor
+        const flockVisible = presence > 0.01
 
         this.body.visible = flockVisible
         this.wingRight.visible = flockVisible
@@ -216,7 +220,7 @@ export default class Seagulls
         if(!flockVisible)
             return
 
-        const scale = this.gullScale * dayFactor
+        const scale = this.gullScale * presence
 
         // Flock anchor trails the player; slower vertically so dives/launches
         // don't yank the whole flock

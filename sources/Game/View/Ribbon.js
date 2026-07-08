@@ -132,6 +132,10 @@ export default class Ribbon
     {
         this.mesh = new THREE.Mesh(this.geometry, this.material)
         this.mesh.frustumCulled = false
+        // Draw after the pad glow (renderOrder 0) but under the aim shadow (2):
+        // all three are transparent with depthWrite off, and the distance sort
+        // otherwise lets a nearby pad draw over the scarf
+        this.mesh.renderOrder = 1
         this.scene.add(this.mesh)
     }
 
