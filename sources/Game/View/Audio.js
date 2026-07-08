@@ -25,7 +25,7 @@ export default class Audio
         this.flowPadVolume = 0.04
         this.susVolume = 0.045
         this.surfVolume = 0.3
-        this.crashVolume = 0.4
+        this.crashVolume = 0.3
 
         // Two-octave A pentatonic scales: minor at night, major by day
         this.scales = {}

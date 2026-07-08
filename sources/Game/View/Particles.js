@@ -27,6 +27,9 @@ export default class Particles
         this.jumpCurlSize = 2
         this.jumpStreakCount = 10
         this.jumpCurlCount = 4
+        this.landStreakSize = 1
+        this.landStreakCount = 6
+        this.trickStreakSize = 1 // roll / bounce / bump bursts
         this.setGeometry()
         this.setMaterial()
         this.setPoints()
@@ -36,7 +39,7 @@ export default class Particles
 
         playerState.events.on('jump', () =>
         {
-            this.spawnWindMarks(10, playerState.position.current, {
+            this.spawnWindMarks(this.jumpStreakCount, playerState.position.current, {
                 angle: this.getTravelAngle(playerState),
                 spread: Math.PI * 0.85,
                 radius: 0.45,
@@ -46,7 +49,7 @@ export default class Particles
                 stretch: 1.7,
                 lifetime: 0.55
             })
-            this.spawnCurlBurst(4, playerState.position.current, {
+            this.spawnCurlBurst(this.jumpCurlCount, playerState.position.current, {
                 angle: this.getTravelAngle(playerState),
                 spread: Math.PI * 2,
                 radius: 0.7,
@@ -61,7 +64,7 @@ export default class Particles
         {
             const intensity = Math.min(impactSpeed / 12, 1)
             this.spawnWindMarks(
-                10 + Math.round(intensity * 14),
+                Math.round(this.landStreakCount * (1 + intensity * 1.4)),
                 playerState.position.current,
                 {
                     angle: this.getTravelAngle(playerState),
@@ -69,7 +72,7 @@ export default class Particles
                     radius: 0.55,
                     speed: 2.8 + intensity * 4.2,
                     up: 0.45,
-                    size: 13 + intensity * 9,
+                    size: this.landStreakSize * (1 + intensity * 0.7),
                     stretch: 2,
                     lifetime: 0.62
                 }
@@ -85,7 +88,7 @@ export default class Particles
                 radius: 0.5,
                 speed: 4.5,
                 up: 1.2,
-                size: 14,
+                size: this.trickStreakSize * 1.3,
                 stretch: 2.2,
                 lifetime: 0.5
             })
@@ -107,7 +110,7 @@ export default class Particles
                 radius: 0.4,
                 speed: 2 + intensity * 2.5,
                 up: 1,
-                size: 10 + intensity * 5,
+                size: this.trickStreakSize * (1 + intensity * 0.5),
                 stretch: 1.5,
                 lifetime: 0.45
             })
@@ -122,7 +125,7 @@ export default class Particles
                 radius: 0.4,
                 speed: 2.2 + intensity * 3,
                 up: 1.4,
-                size: 11 + intensity * 6,
+                size: this.trickStreakSize * (1 + intensity * 0.55),
                 stretch: 1.8,
                 lifetime: 0.5
             })
@@ -444,5 +447,10 @@ export default class Particles
         folder.add(this.material.uniforms.uOpacity, 'value').min(0).max(1).step(0.01).name('uOpacity')
         folder.add(this, 'jumpStreakSize').min(0.5).max(20).step(0.5)
         folder.add(this, 'jumpCurlSize').min(0.5).max(20).step(0.5)
+        folder.add(this, 'jumpStreakCount').min(0).max(30).step(1)
+        folder.add(this, 'jumpCurlCount').min(0).max(12).step(1)
+        folder.add(this, 'landStreakSize').min(0.5).max(20).step(0.5)
+        folder.add(this, 'landStreakCount').min(0).max(30).step(1)
+        folder.add(this, 'trickStreakSize').min(0.5).max(20).step(0.5)
     }
 }
