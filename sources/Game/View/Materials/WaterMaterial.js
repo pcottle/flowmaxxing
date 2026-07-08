@@ -34,6 +34,7 @@ export default function WaterMaterial()
             uRingPeriod: { value: 7 },
             uRingMaxD: { value: 32 },
             uDashLength: { value: 6 },
+            uRainIntensity: { value: 0 },
             uFogTexture: { value: null }
         },
         transparent: true,

@@ -209,6 +209,7 @@ export default class Water
         uniforms.uShoreZRange.value = this.shoreWindow
         uniforms.uOceanRampWidth.value = this.state.terrains.corridor.oceanRampWidth
         uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
+        uniforms.uRainIntensity.value = this.state.weather.rainIntensity
 
         uniforms.uWaveD0.value = waveSets.D0
         uniforms.uWaveWidth.value = waveSets.width

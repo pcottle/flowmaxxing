@@ -135,7 +135,8 @@ export default class Terrains
         const waveSets = this.state.waveSets
         this.material.uniforms.uUprush0.value = waveSets.sets[0].uprushE
         this.material.uniforms.uUprush1.value = waveSets.sets[1].uprushE
-        this.material.uniforms.uWetLine.value = waveSets.wetLineE
+        // Rain soaks the beach through the same wet-line machinery
+        this.material.uniforms.uWetLine.value = Math.max(waveSets.wetLineE, this.state.weather.rainIntensity * 2.5)
         this.material.uniforms.uWetFresh.value = waveSets.wetFresh
 
         // Biome palettes: live-tunable, no recreate needed

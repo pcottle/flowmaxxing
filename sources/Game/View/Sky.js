@@ -127,7 +127,7 @@ export default class Sky
         this.sun.distance = this.outerDistance - 50
         
         const geometry = new THREE.CircleGeometry(0.02 * this.sun.distance, 32)
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff })
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false })
         this.sun.mesh = new THREE.Mesh(geometry, material)
         this.group.add(this.sun.mesh)
     }
@@ -284,6 +284,7 @@ export default class Sky
         const dayState = this.state.day
         const sunState = this.state.sun
         const playerState = this.state.player
+        const weatherState = this.state.weather
 
         // Group
         this.group.position.set(
@@ -295,12 +296,17 @@ export default class Sky
         // Sphere
         this.sphere.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
         this.sphere.material.uniforms.uDayCycleProgress.value = dayState.progress
+        this.sphere.material.uniforms.uStormness.value = weatherState.rainIntensity
+        this.sphere.material.uniforms.uFlash.value = weatherState.flash
 
         // Clouds
         this.clouds.material.uniforms.uTime.value = this.state.time.elapsed
         this.clouds.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
+        this.clouds.material.uniforms.uStormness.value = weatherState.rainIntensity
+        this.clouds.material.uniforms.uFlash.value = weatherState.flash
 
-        // Sun
+        // Sun (the disc hides behind the storm deck)
+        this.sun.mesh.material.opacity = 1 - weatherState.rainIntensity * 0.8
         this.sun.mesh.position.set(
             sunState.position.x * this.sun.distance,
             sunState.position.y * this.sun.distance,
@@ -374,7 +380,17 @@ export default class Sky
         this.stars.material.uniforms.uHeightFragments.value = this.viewport.height * this.viewport.clampedPixelRatio
 
         // Render in render target
-        this.customRender.camera.quaternion.copy(this.view.camera.instance.quaternion)
+        const sourceCamera = this.view.camera.instance
+        this.customRender.camera.quaternion.copy(sourceCamera.quaternion)
+        this.customRender.camera.fov = sourceCamera.fov
+        this.customRender.camera.aspect = sourceCamera.aspect
+        this.customRender.camera.near = sourceCamera.near
+        this.customRender.camera.far = sourceCamera.far
+        this.customRender.camera.zoom = sourceCamera.zoom
+        this.customRender.camera.focus = sourceCamera.focus
+        this.customRender.camera.filmGauge = sourceCamera.filmGauge
+        this.customRender.camera.filmOffset = sourceCamera.filmOffset
+        this.customRender.camera.updateProjectionMatrix()
         this.renderer.instance.setRenderTarget(this.customRender.renderTarget)
         this.renderer.instance.render(this.customRender.scene, this.customRender.camera)
         this.renderer.instance.setRenderTarget(null)
@@ -382,7 +398,9 @@ export default class Sky
 
     resize()
     {
-        this.customRender.renderTarget.width = this.viewport.width * this.customRender.resolutionRatio
-        this.customRender.renderTarget.height = this.viewport.height * this.customRender.resolutionRatio
+        this.customRender.renderTarget.setSize(
+            this.viewport.width * this.customRender.resolutionRatio,
+            this.viewport.height * this.customRender.resolutionRatio
+        )
     }
 }

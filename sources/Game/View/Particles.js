@@ -154,6 +154,71 @@ export default class Particles
                 lifetime: 0.75
             })
         })
+
+        this.state.obstacleCourses.events.on('courseComplete', ({ perfect }) =>
+        {
+            if(!perfect)
+                return
+
+            this.spawnCurlBurst(8, playerState.position.current, {
+                angle: this.getTravelAngle(playerState),
+                spread: Math.PI * 2,
+                radius: 1.2,
+                speed: 3,
+                up: 2,
+                size: this.jumpCurlSize,
+                lifetime: 0.9
+            })
+        })
+
+        this.state.bouncePads.events.on('padBounce', ({ position, perfect }) =>
+        {
+            this.spawnWindMarks(12, position, {
+                angle: 0,
+                spread: Math.PI * 2,
+                radius: 2,
+                speed: 3.5,
+                up: 2.2,
+                size: this.trickStreakSize * 1.3,
+                stretch: 1.8,
+                lifetime: 0.5
+            })
+
+            if(perfect)
+                this.spawnCurlBurst(6, position, {
+                    angle: 0,
+                    spread: Math.PI * 2,
+                    radius: 1.4,
+                    speed: 2.6,
+                    up: 2,
+                    size: this.jumpCurlSize,
+                    lifetime: 0.8
+                })
+        })
+
+        this.state.bouncePads.events.on('prizeCollect', ({ position }) =>
+        {
+            this.spawnWindMarks(24, position, {
+                angle: 0,
+                spread: Math.PI * 2,
+                radius: 1.5,
+                speed: 5,
+                up: 2.8,
+                size: this.trickStreakSize * 1.6,
+                stretch: 2.1,
+                lifetime: 0.6
+            })
+
+            this.spawnCurlBurst(10, position, {
+                angle: 0,
+                spread: Math.PI * 2,
+                radius: 1.4,
+                speed: 3.2,
+                up: 2.4,
+                size: this.jumpCurlSize * 1.1,
+                lifetime: 0.9
+            })
+        })
     }
 
     setGeometry()

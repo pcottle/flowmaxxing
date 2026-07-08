@@ -16,6 +16,7 @@ export default class Wind
         this.gustRelease = 4 // Seconds
         this.gustIntervalMin = 20 // Seconds
         this.gustIntervalMax = 60 // Seconds
+        this.squallBoost = 0.35
 
         this.strength = this.baseStrength
         this.windTime = 0
@@ -51,6 +52,9 @@ export default class Wind
             strength += envelope * this.gustStrength
         }
 
+        // Squall while it rains
+        strength += this.state.weather.rainIntensity * this.squallBoost
+
         this.strength = Math.min(Math.max(strength, 0), 1)
 
         // Accumulated so gusts speed the wind scroll without discontinuity
@@ -68,5 +72,6 @@ export default class Wind
         folder.add(this, 'gustStrength').min(0).max(1).step(0.01)
         folder.add(this, 'gustIntervalMin').min(1).max(120).step(1)
         folder.add(this, 'gustIntervalMax').min(1).max(120).step(1)
+        folder.add(this, 'squallBoost').min(0).max(1).step(0.01)
     }
 }

@@ -22,10 +22,12 @@ export default class Audio
         this.chimeVolume = 0.1
         this.reverbVolume = 0.4
         this.glideVolume = 0.05
-        this.flowPadVolume = 0.04
+        this.flowPadVolume = 0.06
         this.susVolume = 0.015
         this.surfVolume = 0.3
         this.crashVolume = 0.3
+        this.rainVolume = 0.12
+        this.thunderVolume = 0.4
 
         // Two-octave A pentatonic scales: minor at night, major by day
         this.scales = {}
@@ -76,6 +78,12 @@ export default class Audio
         this.setGlide()
         this.setSus()
         this.setSurf()
+        this.setRain()
+
+        this.state.weather.events.on('thunder', () =>
+        {
+            this.playThunder()
+        })
 
         const playerState = this.state.player
 
@@ -177,7 +185,7 @@ export default class Audio
             this.playWhoosh({ startFrequency: 250, endFrequency: 900, duration: 0.5, volume: this.chimeVolume * (0.2 + intensity * 0.3), glint: false })
         })
 
-        this.state.obstacleCourses.events.on('ringCollect', ({ index }) =>
+        this.state.obstacleCourses.events.on('ringCollect', ({ index, type }) =>
         {
             const scaleIndex = Math.min(2 + index, this.chimeFrequencies.length - 1)
             const frequency = this.chimeFrequencies[scaleIndex] * (index > 3 ? 1.5 : 1)
@@ -187,8 +195,70 @@ export default class Audio
             if(index % 3 === 2)
                 this.playChime(frequency * 1.5, this.chimeVolume * 0.38, 1.5, 0.06)
 
+            // Trick rings get their own flavor on top of the ladder chime
+            if(type === 'dive')
+                this.playWhoosh({ startFrequency: 1400, endFrequency: 300, duration: 0.3, volume: this.chimeVolume * 0.6, glint: false })
+            else if(type === 'glide')
+                this.playChime(frequency * 2, this.chimeVolume * 0.4, 1.8)
+            else if(type === 'dashGate')
+                this.playChime(frequency, this.chimeVolume * 0.5, 1.2, 0.08)
+
             this.rememberNote(frequency)
             this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
+        })
+
+        this.state.obstacleCourses.events.on('courseComplete', ({ collected, perfect }) =>
+        {
+            if(collected === 0)
+                return
+
+            if(perfect)
+            {
+                // Full-clear cadence: rising chord capped an octave up
+                const steps = [5, 7, 9]
+
+                for(let i = 0; i < steps.length; i++)
+                    this.playChime(this.chimeFrequencies[steps[i]], this.chimeVolume * 0.8, 2, i * 0.11)
+
+                this.playChime(this.chimeFrequencies[10] * 2, this.chimeVolume * 0.55, 2.4, 0.36)
+                this.playWhoosh({ startFrequency: 600, endFrequency: 2600, duration: 0.7, volume: this.chimeVolume * 0.7 })
+            }
+            else
+            {
+                // Partial clear resolves quietly
+                this.playChime(this.chimeFrequencies[5], this.chimeVolume * 0.4, 1.6)
+                this.playChime(this.chimeFrequencies[3], this.chimeVolume * 0.4, 2, 0.14)
+            }
+        })
+
+        this.state.bouncePads.events.on('padBounce', ({ index, perfect }) =>
+        {
+            // Boing plus a chime climbing the ladder with the tower
+            const scaleIndex = Math.min(2 + index, this.chimeFrequencies.length - 1)
+            const frequency = this.chimeFrequencies[scaleIndex]
+
+            this.playWhoosh({ startFrequency: 160, endFrequency: 750, duration: 0.28, volume: this.chimeVolume * 0.6, glint: false })
+            this.playChime(frequency, this.chimeVolume * 0.8, 1.4)
+
+            if(perfect)
+                this.playChime(frequency * 1.5, this.chimeVolume * 0.45, 1.5, 0.05)
+
+            this.rememberNote(frequency)
+            this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
+        })
+
+        this.state.bouncePads.events.on('prizeCollect', () =>
+        {
+            // Apex fanfare: rising arpeggio capped an octave up
+            const steps = [5, 7, 9, 10]
+
+            for(let i = 0; i < steps.length; i++)
+            {
+                const frequency = this.chimeFrequencies[steps[i]] * (i === steps.length - 1 ? 2 : 1)
+                this.playChime(frequency, this.chimeVolume * (0.9 - i * 0.12), 1.8, i * 0.09)
+            }
+
+            this.playWhoosh({ startFrequency: 500, endFrequency: 2400, duration: 0.6, volume: this.chimeVolume * 0.7 })
         })
 
         this.ready = true
@@ -314,26 +384,37 @@ export default class Audio
         this.pad.day = createVoicing([110, 164.81, 220]) // A2, E3, A3 — open fifth
         this.pad.night = createVoicing([110, 130.81, 164.81]) // A2, C3, E3 — minor
 
-        // Flow voice: a high harmonic pair that fades in as the player's flow
-        // builds (bypasses the pad lowpass so it stays airy)
+        // Flow voice: an airy high shimmer that fades in as the player's flow
+        // builds — narrow-band noise instead of held notes, so speed reads as
+        // sparkle rather than a ringing chord. Raised playback rate
+        // decorrelates it from the wind (same noise buffer, higher band)
         this.pad.flow = {}
         this.pad.flow.gain = this.context.createGain()
         this.pad.flow.gain.gain.value = 0
         this.pad.flow.gain.connect(this.masterGain)
         this.pad.flow.gain.connect(this.reverb.input)
 
-        for(const frequency of [440, 659.25]) // A4, E5
-        {
-            for(const detune of [- 3, 3])
-            {
-                const oscillator = this.context.createOscillator()
-                oscillator.type = 'sine'
-                oscillator.frequency.value = frequency
-                oscillator.detune.value = detune
-                oscillator.connect(this.pad.flow.gain)
-                oscillator.start()
-            }
-        }
+        this.pad.flow.filter = this.context.createBiquadFilter()
+        this.pad.flow.filter.type = 'bandpass'
+        this.pad.flow.filter.frequency.value = 2800
+        this.pad.flow.filter.Q.value = 1.5
+        this.pad.flow.filter.connect(this.pad.flow.gain)
+
+        this.pad.flow.source = this.context.createBufferSource()
+        this.pad.flow.source.buffer = this.getNoiseBuffer()
+        this.pad.flow.source.loop = true
+        this.pad.flow.source.playbackRate.value = 1.3
+        this.pad.flow.source.connect(this.pad.flow.filter)
+        this.pad.flow.source.start()
+
+        // Slow drift on the band keeps the shimmer breathing
+        this.pad.flow.lfo = this.context.createOscillator()
+        this.pad.flow.lfo.frequency.value = 0.18
+        this.pad.flow.lfoGain = this.context.createGain()
+        this.pad.flow.lfoGain.gain.value = 700
+        this.pad.flow.lfo.connect(this.pad.flow.lfoGain)
+        this.pad.flow.lfoGain.connect(this.pad.flow.filter.frequency)
+        this.pad.flow.lfo.start()
     }
 
     setGlide()
@@ -416,6 +497,30 @@ export default class Audio
         this.surf.filter.connect(this.surf.gain)
         this.surf.gain.connect(this.masterGain)
         this.surf.source.start()
+    }
+
+    setRain()
+    {
+        // Rain hiss: the shared noise bed sped up and pushed through a high
+        // bandpass so it sits above the wind and surf rather than thickening them
+        this.rain = {}
+        this.rain.source = this.context.createBufferSource()
+        this.rain.source.buffer = this.getNoiseBuffer()
+        this.rain.source.loop = true
+        this.rain.source.playbackRate.value = 1.5
+
+        this.rain.filter = this.context.createBiquadFilter()
+        this.rain.filter.type = 'bandpass'
+        this.rain.filter.frequency.value = 3000
+        this.rain.filter.Q.value = 0.5
+
+        this.rain.gain = this.context.createGain()
+        this.rain.gain.gain.value = 0
+
+        this.rain.source.connect(this.rain.filter)
+        this.rain.filter.connect(this.rain.gain)
+        this.rain.gain.connect(this.masterGain)
+        this.rain.source.start()
     }
 
     rememberNote(frequency)
@@ -581,6 +686,57 @@ export default class Audio
         spray.stop(now + 0.45)
     }
 
+    playThunder()
+    {
+        if(!this.ready)
+            return
+
+        const now = this.context.currentTime
+        const peak = this.thunderVolume
+
+        if(peak < 0.001)
+            return
+
+        // Distant rumble: noise swelling in, darkening fast as it decays
+        const body = this.context.createBufferSource()
+        body.buffer = this.getNoiseBuffer()
+        body.loop = true
+
+        const bodyFilter = this.context.createBiquadFilter()
+        bodyFilter.type = 'lowpass'
+        bodyFilter.Q.value = 0.9
+        bodyFilter.frequency.setValueAtTime(700, now)
+        bodyFilter.frequency.exponentialRampToValueAtTime(90, now + 3)
+
+        const bodyGain = this.context.createGain()
+        bodyGain.gain.setValueAtTime(0, now)
+        bodyGain.gain.linearRampToValueAtTime(peak, now + 0.25)
+        bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 4)
+
+        body.connect(bodyFilter)
+        bodyFilter.connect(bodyGain)
+        bodyGain.connect(this.masterGain)
+        bodyGain.connect(this.reverb.input)
+        body.start(now)
+        body.stop(now + 4.1)
+
+        // Sub thump under the swell
+        const sub = this.context.createOscillator()
+        sub.type = 'sine'
+        sub.frequency.setValueAtTime(55, now)
+        sub.frequency.exponentialRampToValueAtTime(38, now + 1.5)
+
+        const subGain = this.context.createGain()
+        subGain.gain.setValueAtTime(0, now)
+        subGain.gain.linearRampToValueAtTime(peak * 0.6, now + 0.15)
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + 2)
+
+        sub.connect(subGain)
+        subGain.connect(this.masterGain)
+        sub.start(now)
+        sub.stop(now + 2.1)
+    }
+
     playWhoosh({ startFrequency = 400, endFrequency = 1800, duration = 0.45, volume = null, glint = true } = {})
     {
         if(!this.ready)
@@ -650,6 +806,9 @@ export default class Audio
         const windAmount = Math.min(0.25 + speedNorm * speedNorm * 0.55 + windState.strength * 0.35 + fallNorm * 0.4, 1)
         this.wind.filter.frequency.setTargetAtTime(300 + windAmount * 900, now, 0.4)
         this.wind.gain.gain.setTargetAtTime(this.windVolume * windAmount, now, 0.4)
+
+        // Rain hiss follows the weather intensity
+        this.rain.gain.gain.setTargetAtTime(this.rainVolume * this.state.weather.rainIntensity, now, 0.5)
 
         // Crossfade pad voicings with the day cycle
         const dayness = Math.min(Math.max(sunState.position.y * 4 + 0.5, 0), 1)
@@ -784,6 +943,8 @@ export default class Audio
         folder.add(this, 'susVolume').min(0).max(0.15).step(0.005)
         folder.add(this, 'surfVolume').min(0).max(0.6).step(0.01)
         folder.add(this, 'crashVolume').min(0).max(0.8).step(0.01)
+        folder.add(this, 'rainVolume').min(0).max(0.5).step(0.01)
+        folder.add(this, 'thunderVolume').min(0).max(1).step(0.01)
         folder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
         {
             if(this.ready)

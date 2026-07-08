@@ -19,12 +19,19 @@ export default class ObstacleCourses
         this.nextColor = new THREE.Color('#fff0a6')
         this.idleColor = new THREE.Color('#73d9ff')
         this.rollColor = new THREE.Color('#ff9bbd')
+        this.diveColor = new THREE.Color('#6fe3a5')
+        this.glideColor = new THREE.Color('#cfe9ff')
+        this.dashColor = new THREE.Color('#ffb066')
+        this.goldenColor = new THREE.Color('#ffd166')
+        this.finishColor = new THREE.Color('#b6ff7a')
         this.missedColor = new THREE.Color('#8aa8bb')
 
         this.geometry = new THREE.TorusGeometry(1.45, 0.075, 4, 14).toNonIndexed()
         this.geometry.computeVertexNormals()
         this.markerGeometry = new THREE.ConeGeometry(0.22, 0.68, 3, 1).toNonIndexed()
         this.markerGeometry.rotateZ(- Math.PI * 0.5)
+        this.postGeometry = new THREE.CylinderGeometry(0.09, 0.09, 4.4, 6, 1).toNonIndexed()
+        this.postGeometry.computeVertexNormals()
         this.rings = []
     }
 
@@ -60,7 +67,22 @@ export default class ObstacleCourses
         hint.position.y = 2.35
         group.add(hint)
 
-        const item = { group, mesh, marker, hint }
+        // Dash gates swap the torus for a pair of flanking posts
+        const postMaterial = new THREE.MeshBasicMaterial({
+            color: this.dashColor,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        })
+        const postLeft = new THREE.Mesh(this.postGeometry, postMaterial)
+        postLeft.position.x = - 2.2
+        group.add(postLeft)
+        const postRight = new THREE.Mesh(this.postGeometry, postMaterial)
+        postRight.position.x = 2.2
+        group.add(postRight)
+
+        const item = { group, mesh, marker, hint, postLeft, postRight }
         this.rings.push(item)
 
         return item
@@ -99,9 +121,15 @@ export default class ObstacleCourses
             const mesh = item.mesh
             const marker = item.marker
             const hint = item.hint
+            const postLeft = item.postLeft
+            const postRight = item.postRight
+            const isGate = ring.type === 'dashGate'
             const isNext = ring === nextRing
+            const isFinal = ring.index === course.rings.length - 1
             const revealed = ring.index <= revealLimit
-            const pulse = isNext ? 1 + Math.sin(this.time.elapsed * 5.2) * 0.08 : 1
+            let pulse = isNext ? 1 + Math.sin(this.time.elapsed * 5.2) * 0.08 : 1
+            if(isFinal)
+                pulse += 0.16 + Math.sin(this.time.elapsed * 3.4) * 0.06
             if(revealed && ring.revealTime === 0)
                 ring.revealTime = this.time.elapsed
 
@@ -118,7 +146,25 @@ export default class ObstacleCourses
             else
                 opacity *= fadeIn
 
-            this.color.copy(ring.missed ? this.missedColor : (ring.requiresRoll ? this.rollColor : this.idleColor))
+            if(ring.missed)
+                this.color.copy(this.missedColor)
+            else if(isFinal)
+                this.color.copy(this.finishColor)
+            else if(ring.type === 'roll')
+                this.color.copy(this.rollColor)
+            else if(ring.type === 'dive')
+                this.color.copy(this.diveColor)
+            else if(ring.type === 'glide')
+                this.color.copy(this.glideColor)
+            else if(isGate)
+                this.color.copy(this.dashColor)
+            else
+                this.color.copy(this.idleColor)
+
+            // Streak courses drift toward gold
+            if(!ring.missed)
+                this.color.lerp(this.goldenColor, Math.min(course.streakLevel, 5) / 5 * 0.35)
+
             if(isNext)
                 this.color.lerp(this.nextColor, 0.72)
 
@@ -129,13 +175,41 @@ export default class ObstacleCourses
             group.quaternion.setFromUnitVectors(this.forward, this.direction)
             this.rollQuaternion.setFromAxisAngle(this.direction, this.time.elapsed * 0.9 + i * 0.55)
             group.scale.setScalar(pulse)
+            mesh.visible = !isGate
             mesh.quaternion.copy(this.rollQuaternion)
             mesh.material.opacity = opacity
             mesh.material.color.copy(this.color)
-            marker.visible = ring.requiresRoll !== 0
-            marker.position.x = 1.9 * (ring.requiresRoll || 1)
-            marker.rotation.z = ring.requiresRoll > 0 ? - Math.PI * 0.5 : Math.PI * 0.5
-            marker.material.opacity = opacity * (ring.requiresRoll ? 0.9 : 0)
+            postLeft.visible = isGate
+            postRight.visible = isGate
+            postLeft.material.opacity = opacity
+            postLeft.material.color.copy(this.color)
+
+            if(ring.type === 'roll')
+            {
+                marker.visible = true
+                marker.position.set(1.9 * ring.rollDirection, 0, 0)
+                marker.rotation.z = ring.rollDirection > 0 ? - Math.PI * 0.5 : Math.PI * 0.5
+            }
+            else if(ring.type === 'dive')
+            {
+                // Cone above pointing down: plunge through from the sky
+                marker.visible = true
+                marker.position.set(0, 2, 0)
+                marker.rotation.z = - Math.PI * 0.5
+            }
+            else if(ring.type === 'glide')
+            {
+                // Cone below pointing up: float in gently from above
+                marker.visible = true
+                marker.position.set(0, - 2, 0)
+                marker.rotation.z = Math.PI * 0.5
+            }
+            else
+            {
+                marker.visible = false
+            }
+
+            marker.material.opacity = opacity * (marker.visible ? 0.9 : 0)
             marker.material.color.copy(this.color)
             hint.visible = ring.hintRoll !== 0
             hint.position.x = 0.9 * (ring.hintRoll || 1)

@@ -15,7 +15,9 @@ export default function CloudsMaterial()
             uCoverage: { value: 0.72 },
             uSoftness: { value: 0.35 },
             uDriftSpeed: { value: new THREE.Vector2(0.003, 0.001) },
-            uOpacity: { value: 0.92 }
+            uOpacity: { value: 0.92 },
+            uStormness: { value: 0 },
+            uFlash: { value: 0 }
         },
         transparent: true,
         depthWrite: false,

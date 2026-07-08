@@ -1,4 +1,5 @@
 import Audio from './Audio.js'
+import BouncePads from './BouncePads.js'
 import Camera from './Camera.js'
 import Chunks from './Chunks.js'
 import Grass from './Grass.js'
@@ -7,6 +8,8 @@ import ObstacleCourses from './ObstacleCourses.js'
 import Particles from './Particles.js'
 import Player from './Player.js'
 import Props from './Props.js'
+import Rain from './Rain.js'
+import Rainbow from './Rainbow.js'
 import Renderer from './Renderer.js'
 import Ribbon from './Ribbon.js'
 import Sky from './Sky.js'
@@ -45,7 +48,10 @@ export default class View
         this.grass = new Grass()
         this.props = new Props()
         this.obstacleCourses = new ObstacleCourses()
+        this.bouncePads = new BouncePads()
         this.particles = new Particles()
+        this.rain = new Rain()
+        this.rainbow = new Rainbow()
         this.audio = new Audio()
     }
 
@@ -56,10 +62,12 @@ export default class View
         this.sky.resize()
         this.terrains.resize()
         this.particles.resize()
+        this.rain.resize()
     }
 
     update()
     {
+        this.camera.update()
         this.sky.update()
         this.water.update()
         this.terrains.update()
@@ -69,9 +77,11 @@ export default class View
         this.grass.update()
         this.props.update()
         this.obstacleCourses.update()
+        this.bouncePads.update()
         this.particles.update()
+        this.rain.update()
+        this.rainbow.update()
         this.audio.update()
-        this.camera.update()
         this.renderer.update()
     }
 

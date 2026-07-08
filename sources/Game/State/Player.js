@@ -281,6 +281,16 @@ export default class Player
         this.events.emit('ringRefill')
     }
 
+    launchFromPad(verticalVelocity)
+    {
+        this.grounded = false
+        this.swimming = false
+        this.diving = false
+        this.airTime = 0
+        this.jumpCount = Math.min(this.jumpCount, 1)
+        this.velocity[1] = verticalVelocity
+    }
+
     getTerrainGradient(sample)
     {
         if(sample === false || !sample.normal)

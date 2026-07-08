@@ -21,7 +21,9 @@ export default function SkySphereMaterial()
             uSunAmplitude: { value: 0.75 },
             uSunMultiplier: { value: 1 },
             uColorSun: { value: new THREE.Color() },
-            uDayCycleProgress: { value: 0 }
+            uDayCycleProgress: { value: 0 },
+            uStormness: { value: 0 },
+            uFlash: { value: 0 }
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader

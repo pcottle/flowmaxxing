@@ -40,18 +40,36 @@ export default class ObstacleCourses
         this.expireDelay = 1.4
         this.visibleAhead = 3
         this.rollGrace = 1.15
+        this.dashGrace = 1
+        this.diveGrace = 0.3
+        this.glideGrace = 0.3
+        this.diveRingHeight = 1.6
+        this.glideRingExtraHeight = 3
+        this.specialStartIndex = 3
+        this.specialMinGap = 3
+        this.specialChance = 0.35
+        this.streakRingBonus = 2
 
         this.straightTimer = 0
         this.straightDirection = vec3.fromValues(0, 0, - 1)
         this.course = null
         this.nextCourseId = 1
+        this.streak = 0
         this.recentRollDirection = 0
         this.recentRollTime = - 999
+        this.recentDashTime = - 999
+        this.lastDivingTime = - 999
+        this.lastGlidingTime = - 999
 
         this.state.player.events.on('roll', (direction) =>
         {
             this.recentRollDirection = direction
             this.recentRollTime = this.time.elapsed
+        })
+
+        this.state.player.events.on('dash', () =>
+        {
+            this.recentDashTime = this.time.elapsed
         })
 
         this.setDebug()
@@ -103,6 +121,49 @@ export default class ObstacleCourses
         return Math.max(minX, Math.min(maxX, x))
     }
 
+    chooseRingTypes(ringCount)
+    {
+        // Baseline: ring 1 is the roll ring (hinted by ring 0), rest normal.
+        // Perfect-clear streaks unlock trick rings sprinkled over the middle
+        // of the course so the opening always stays readable
+        const types = []
+
+        for(let i = 0; i < ringCount; i++)
+            types.push(i === 1 ? 'roll' : 'normal')
+
+        const pool = []
+
+        if(this.streak >= 1)
+            pool.push('glide')
+
+        if(this.streak >= 2)
+            pool.push('dive')
+
+        if(this.streak >= 3)
+            pool.push('dashGate')
+
+        if(pool.length === 0)
+            return types
+
+        let budget = Math.min(1 + this.streak, Math.floor(ringCount / 3))
+        let lastSpecial = - this.specialMinGap
+
+        for(let i = this.specialStartIndex; i <= ringCount - 2 && budget > 0; i++)
+        {
+            if(i - lastSpecial < this.specialMinGap)
+                continue
+
+            if(Math.random() < this.specialChance)
+            {
+                types[i] = pool[Math.floor(Math.random() * pool.length)]
+                lastSpecial = i
+                budget--
+            }
+        }
+
+        return types
+    }
+
     createCourse(player)
     {
         const chunks = this.state.chunks
@@ -112,8 +173,11 @@ export default class ObstacleCourses
         const sideZ = directionX
         const originX = player.position.current[0]
         const originZ = player.position.current[2]
-        const ringCount = this.ringCountMin + Math.floor(Math.random() * (this.ringCountMax - this.ringCountMin + 1))
+        const ringCount = this.ringCountMin
+            + Math.floor(Math.random() * (this.ringCountMax - this.ringCountMin + 1))
+            + Math.min(this.streak * this.streakRingBonus, 10)
         const trickDirection = Math.random() < 0.5 ? - 1 : 1
+        const types = this.chooseRingTypes(ringCount)
         const rings = []
 
         for(let i = 0; i < ringCount; i++)
@@ -136,10 +200,23 @@ export default class ObstacleCourses
             if(elevation === false || !Number.isFinite(elevation))
                 return false
 
-            const requiresRoll = i === 1 ? trickDirection : 0
+            const type = types[i]
+            const rollDirection = type === 'roll' ? trickDirection : 0
             const hintRoll = i === 0 ? trickDirection : 0
-            const targetY = elevation + (i === 0 ? this.firstRingHeight : this.heightBase + Math.sin(i * 0.9) * this.heightAmplitude)
-            const y = i === 0 ? targetY : Math.min(targetY, rings[i - 1].position[1] + this.maxRingClimb)
+            let targetY = elevation + (i === 0 ? this.firstRingHeight : this.heightBase + Math.sin(i * 0.9) * this.heightAmplitude)
+
+            if(type === 'dive')
+                targetY = elevation + this.diveRingHeight
+            else if(type === 'glide')
+                targetY = elevation + this.heightBase + this.glideRingExtraHeight
+
+            let y = i === 0 ? targetY : Math.min(targetY, rings[i - 1].position[1] + this.maxRingClimb)
+
+            // Glide rings cap just above the previous ring: the refill float
+            // peaks higher than this, so the ring is always enterable while
+            // descending with jump held — exactly the glide condition
+            if(type === 'glide' && i > 0)
+                y = Math.min(y, rings[i - 1].position[1] + 1)
 
             rings.push({
                 id: `${this.nextCourseId}:${i}`,
@@ -153,7 +230,8 @@ export default class ObstacleCourses
                 ),
                 distance,
                 radius: this.collectRadius,
-                requiresRoll,
+                type,
+                rollDirection,
                 hintRoll,
                 collected: false,
                 missed: false,
@@ -165,6 +243,7 @@ export default class ObstacleCourses
             id: this.nextCourseId++,
             createdAt: this.time.elapsed,
             completedAt: 0,
+            streakLevel: this.streak,
             origin: vec3.fromValues(originX, player.position.current[1], originZ),
             direction: vec3.fromValues(directionX, 0, directionZ),
             rings
@@ -196,12 +275,28 @@ export default class ObstacleCourses
         return Math.min(this.course.rings.length - 1, nextIndex + this.visibleAhead - 1)
     }
 
+    isGliding(player)
+    {
+        return !player.grounded && player.velocity[1] < 0 && this.state.controls.keys.down.jump
+    }
+
     canCollectRing(ring)
     {
-        if(!ring.requiresRoll)
-            return true
+        const player = this.state.player
 
-        return this.recentRollDirection === ring.requiresRoll && this.time.elapsed - this.recentRollTime < this.rollGrace
+        if(ring.type === 'roll')
+            return this.recentRollDirection === ring.rollDirection && this.time.elapsed - this.recentRollTime < this.rollGrace
+
+        if(ring.type === 'dive')
+            return player.diving || this.time.elapsed - this.lastDivingTime < this.diveGrace
+
+        if(ring.type === 'glide')
+            return this.isGliding(player) || this.time.elapsed - this.lastGlidingTime < this.glideGrace
+
+        if(ring.type === 'dashGate')
+            return this.time.elapsed - this.recentDashTime < this.dashGrace
+
+        return true
     }
 
     collectRing(ring, player)
@@ -215,6 +310,7 @@ export default class ObstacleCourses
             ring,
             index: ring.index,
             count: this.course.rings.length,
+            type: ring.type,
             position: ring.position,
             direction: this.course.direction
         })
@@ -226,6 +322,14 @@ export default class ObstacleCourses
         const toPlayerX = player.position.current[0] - course.origin[0]
         const toPlayerZ = player.position.current[2] - course.origin[2]
         const playerDistance = toPlayerX * course.direction[0] + toPlayerZ * course.direction[2]
+
+        // Grace trackers so collecting a frame or two after pulling out of a
+        // dive or glide still counts
+        if(player.diving)
+            this.lastDivingTime = this.time.elapsed
+
+        if(this.isGliding(player))
+            this.lastGlidingTime = this.time.elapsed
 
         for(const ring of course.rings)
         {
@@ -253,7 +357,21 @@ export default class ObstacleCourses
         const farPast = playerDistance > lastRing.distance + this.courseEndDistance
 
         if((finished || farPast) && course.completedAt === 0)
+        {
             course.completedAt = this.time.elapsed
+
+            const collected = course.rings.filter(ring => ring.collected).length
+            const perfect = collected === course.rings.length
+            this.streak = perfect ? this.streak + 1 : 0
+
+            this.events.emit('courseComplete', {
+                course,
+                collected,
+                total: course.rings.length,
+                perfect,
+                streak: this.streak
+            })
+        }
 
         if(course.completedAt > 0 && this.time.elapsed - course.completedAt > this.expireDelay)
             this.course = null
@@ -300,6 +418,7 @@ export default class ObstacleCourses
         folder.add(this, 'maxRingClimb').min(0.25).max(4).step(0.05)
         folder.add(this, 'visibleAhead').min(1).max(7).step(1)
         folder.add(this, 'rollGrace').min(0.2).max(3).step(0.05)
+        folder.add(this, 'streak').min(0).max(8).step(1)
         folder.add({ spawn: () => this.createCourse(this.state.player) }, 'spawn')
     }
 }

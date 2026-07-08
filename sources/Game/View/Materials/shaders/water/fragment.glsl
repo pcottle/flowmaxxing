@@ -14,6 +14,7 @@ uniform float uFoamGap;
 uniform float uRingPeriod;
 uniform float uRingMaxD;
 uniform float uDashLength;
+uniform float uRainIntensity;
 uniform float uWaveFoamWidth0;
 uniform float uWaveFoamWidth1;
 uniform float uWaveFoamIntensity0;
@@ -78,6 +79,15 @@ void main()
 
     // Solid crest band on the steep face of a set wave, scalloped threshold
     foam = max(foam, step(0.075 + scallop * 0.004, vCrestSlope));
+
+    // Rain splash rings: hashed grid cells each run a short expanding ring,
+    // more cells joining in as the rain builds
+    vec2 rainCell = floor(vWorldPosition.xz / 2.5);
+    float rainHash = fract(sin(dot(rainCell, vec2(127.1, 311.7))) * 43758.5453);
+    float rainCycle = fract(uTime * 1.5 + rainHash * 11.0);
+    float rainRing = step(abs(length(fract(vWorldPosition.xz / 2.5) - 0.5) - rainCycle * 0.3), 0.045)
+                   * step(rainCycle, 0.5) * step(rainHash, uRainIntensity * 0.7);
+    foam = max(foam, rainRing);
 
     // Fade at the sand so the plane has no hard edge
     alpha *= smoothstep(- 3.0, 1.5, d);
