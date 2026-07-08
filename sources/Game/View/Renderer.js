@@ -32,8 +32,7 @@ export default class Renderer
             alpha: false,
             antialias: true
         })
-        
-        this.instance.sortObjects = false
+
         this.instance.domElement.style.position = 'absolute'
         this.instance.domElement.style.top = 0
         this.instance.domElement.style.left = 0

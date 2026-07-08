@@ -14,7 +14,6 @@ export default class ObstacleCourses
         this.scene = this.view.scene
         this.forward = new THREE.Vector3(0, 0, 1)
         this.direction = new THREE.Vector3(0, 0, - 1)
-        this.rollQuaternion = new THREE.Quaternion()
         this.color = new THREE.Color()
         this.nextColor = new THREE.Color('#fff0a6')
         this.idleColor = new THREE.Color('#73d9ff')
@@ -173,10 +172,8 @@ export default class ObstacleCourses
             group.visible = opacity > 0.01
             group.position.set(ring.position[0], y, ring.position[2])
             group.quaternion.setFromUnitVectors(this.forward, this.direction)
-            this.rollQuaternion.setFromAxisAngle(this.direction, this.time.elapsed * 0.9 + i * 0.55)
             group.scale.setScalar(pulse)
             mesh.visible = !isGate
-            mesh.quaternion.copy(this.rollQuaternion)
             mesh.material.opacity = opacity
             mesh.material.color.copy(this.color)
             postLeft.visible = isGate

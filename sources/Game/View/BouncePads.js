@@ -34,10 +34,9 @@ export default class BouncePads
 
         // Aim shadow: no lights in this renderer, so a blob shadow on the pad
         // surface shows where the player will land while falling toward it.
-        // A squat cylinder, not a flat disc — the orbit camera sits barely
-        // above horizontal, and mid-jump a disc foreshortens to an invisible
-        // sliver; the puck's side band stays readable edge-on
-        this.shadowGeometry = new THREE.CylinderGeometry(1, 1, 0.22, 20, 1)
+        // A very shallow cylinder keeps the mark readable without looking
+        // like a physical puck sitting on the pad.
+        this.shadowGeometry = new THREE.CylinderGeometry(1, 1, 0.025, 20, 1)
         this.shadowMaterial = new THREE.MeshBasicMaterial({
             color: '#10222b',
             transparent: true,
@@ -331,9 +330,9 @@ export default class BouncePads
         const radius = 0.55 + 0.45 * heightRatio
 
         this.shadow.visible = true
-        this.shadow.position.set(playerX, padY + 0.23, playerZ)
+        this.shadow.position.set(playerX, padY + 0.1, playerZ)
         this.shadow.scale.set(radius, 1, radius)
-        this.shadow.material.opacity = rimFade * 0.55
+        this.shadow.material.opacity = rimFade * 0.38
     }
 
     update()
