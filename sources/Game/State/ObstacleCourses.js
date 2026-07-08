@@ -25,7 +25,7 @@ export default class ObstacleCourses
         this.cooldownTimer = 5
 
         this.ringCountMin = 5
-        this.ringCountMax = 7
+        this.ringCountMax = 25
         this.startDistance = 44
         this.spacing = 13
         this.lateralAmplitude = 4.5
