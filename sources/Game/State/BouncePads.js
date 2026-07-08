@@ -30,7 +30,7 @@ export default class BouncePads
         this.verticalGap = 3.2
         this.spiralRadius = 6
         this.spiralStep = 1.15
-        this.forwardStep = 4.5
+        this.forwardStep = 6
 
         // Tuning bounds: launchBase^2 / 56 must exceed verticalGap + 1 so every
         // gap is reachable, and (launchBase * jumpCutRatio)^2 / 56 must stay

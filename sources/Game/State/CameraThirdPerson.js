@@ -24,6 +24,14 @@ export default class CameraThirdPerson
         this.springRate = 6
         this.positionInitialised = false
         this.autoTurnRate = 1.2
+
+        // Transient look-down after a bounce pad launch so the pads below
+        // stay in view; decays back so it never fights pointer control.
+        // Bound lazily: bouncePads is constructed after the player's camera
+        this.bounceTilt = 0
+        this.bounceTiltMax = 0.2
+        this.bounceTiltDecayRate = 0.9
+        this.padEventsBound = false
     }
 
     activate()
@@ -39,6 +47,19 @@ export default class CameraThirdPerson
 
     update()
     {
+        if(!this.padEventsBound && this.state.bouncePads)
+        {
+            this.padEventsBound = true
+
+            this.state.bouncePads.events.on('padBounce', ({ index }) =>
+            {
+                const amount = index === 0 ? 0.14 : 0.08
+                this.bounceTilt = Math.min(this.bounceTilt + amount, this.bounceTiltMax)
+            })
+        }
+
+        this.bounceTilt *= Math.exp(- this.bounceTiltDecayRate * this.state.time.delta)
+
         if(!this.active)
             return
 
@@ -71,10 +92,11 @@ export default class CameraThirdPerson
 
 
         // Position (springs toward the ideal orbit position)
-        const sinPhiRadius = Math.sin(this.phi) * this.distance
+        const phi = Math.max(this.phiLimits.min, this.phi - this.bounceTilt)
+        const sinPhiRadius = Math.sin(phi) * this.distance
         const sphericalPosition = vec3.fromValues(
             sinPhiRadius * Math.sin(this.theta),
-            Math.cos(this.phi) * this.distance,
+            Math.cos(phi) * this.distance,
             sinPhiRadius * Math.cos(this.theta)
         )
         const desiredPosition = vec3.create()
