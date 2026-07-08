@@ -79,6 +79,15 @@ export default class Player
         {
             this.stretch = - 0.25 * Math.min(impactSpeed / 12, 1)
         })
+
+        this.state.cyclones.events.on('cycloneLaunch', () =>
+        {
+            // Lazy celebratory corkscrew on the way up — View animation only,
+            // not the state 'roll' event (that would double flow and audio)
+            this.rollDirection = 1
+            this.rollProgress = 0
+            this.stretch = 0.3
+        })
     }
 
     setGroup()

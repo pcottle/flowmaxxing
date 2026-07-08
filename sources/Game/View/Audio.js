@@ -85,6 +85,14 @@ export default class Audio
             this.playThunder()
         })
 
+        this.state.cyclones.events.on('cycloneLaunch', () =>
+        {
+            // Big rising gust with a sparkle on top
+            this.playWhoosh({ startFrequency: 180, endFrequency: 2600, duration: 1.1, volume: this.chimeVolume * 0.9 })
+            this.playChime(this.chimeFrequencies[4], this.chimeVolume * 0.6, 2, 0.15)
+            this.playChime(this.chimeFrequencies[6], this.chimeVolume * 0.5, 2, 0.3)
+        })
+
         const playerState = this.state.player
 
         playerState.events.on('jump', (jumpCount) =>

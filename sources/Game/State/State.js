@@ -12,6 +12,7 @@ import Terrains from './Terrains.js'
 import Chunks from './Chunks.js'
 import ObstacleCourses from './ObstacleCourses.js'
 import BouncePads from './BouncePads.js'
+import Cyclones from './Cyclones.js'
 
 export default class State
 {
@@ -43,6 +44,7 @@ export default class State
         this.chunks = new Chunks()
         this.obstacleCourses = new ObstacleCourses()
         this.bouncePads = new BouncePads()
+        this.cyclones = new Cyclones()
     }
 
     resize()
@@ -63,5 +65,6 @@ export default class State
         this.chunks.update()
         this.obstacleCourses.update()
         this.bouncePads.update()
+        this.cyclones.update()
     }
 }

@@ -2,7 +2,10 @@ import Audio from './Audio.js'
 import BouncePads from './BouncePads.js'
 import Camera from './Camera.js'
 import Chunks from './Chunks.js'
+import Cyclones from './Cyclones.js'
+import Fish from './Fish.js'
 import Grass from './Grass.js'
+import HorizonIslands from './HorizonIslands.js'
 import Noises from './Noises.js'
 import ObstacleCourses from './ObstacleCourses.js'
 import Particles from './Particles.js'
@@ -12,6 +15,7 @@ import Rain from './Rain.js'
 import Rainbow from './Rainbow.js'
 import Renderer from './Renderer.js'
 import Ribbon from './Ribbon.js'
+import Seagulls from './Seagulls.js'
 import Sky from './Sky.js'
 import Terrains from './Terrains.js'
 import Water from './Water.js'
@@ -41,6 +45,7 @@ export default class View
         this.noises = new Noises()
         this.sky = new Sky()
         this.water = new Water()
+        this.horizonIslands = new HorizonIslands()
         this.terrains = new Terrains()
         this.chunks = new Chunks()
         this.player = new Player()
@@ -49,9 +54,12 @@ export default class View
         this.props = new Props()
         this.obstacleCourses = new ObstacleCourses()
         this.bouncePads = new BouncePads()
+        this.cyclones = new Cyclones()
         this.particles = new Particles()
         this.rain = new Rain()
         this.rainbow = new Rainbow()
+        this.seagulls = new Seagulls()
+        this.fish = new Fish()
         this.audio = new Audio()
     }
 
@@ -70,6 +78,7 @@ export default class View
         this.camera.update()
         this.sky.update()
         this.water.update()
+        this.horizonIslands.update()
         this.terrains.update()
         this.chunks.update()
         this.player.update()
@@ -78,9 +87,12 @@ export default class View
         this.props.update()
         this.obstacleCourses.update()
         this.bouncePads.update()
+        this.cyclones.update()
         this.particles.update()
         this.rain.update()
         this.rainbow.update()
+        this.seagulls.update()
+        this.fish.update()
         this.audio.update()
         this.renderer.update()
     }
