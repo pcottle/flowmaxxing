@@ -23,7 +23,7 @@ export default class Audio
         this.reverbVolume = 0.4
         this.glideVolume = 0.05
         this.flowPadVolume = 0.04
-        this.susVolume = 0.045
+        this.susVolume = 0.015
         this.surfVolume = 0.3
         this.crashVolume = 0.3
 
