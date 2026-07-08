@@ -255,6 +255,32 @@ export default class Player
         }
     }
 
+    refillJumpFromRing(direction)
+    {
+        if(!this.grounded)
+        {
+            this.jumpCount = Math.min(this.jumpCount, 1)
+
+            if(this.velocity[1] < 1.5)
+                this.velocity[1] = 1.5
+        }
+
+        if(direction)
+        {
+            const horizontalSpeed = Math.hypot(this.velocity[0], this.velocity[2])
+            const minCarrySpeed = this.inputSpeed * 0.85
+
+            if(horizontalSpeed < minCarrySpeed)
+            {
+                this.velocity[0] = direction[0] * minCarrySpeed
+                this.velocity[2] = direction[2] * minCarrySpeed
+            }
+        }
+
+        this.addFlow(0.08)
+        this.events.emit('ringRefill')
+    }
+
     getTerrainGradient(sample)
     {
         if(sample === false || !sample.normal)

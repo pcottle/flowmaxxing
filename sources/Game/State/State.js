@@ -9,6 +9,7 @@ import PropsColliders from './PropsColliders.js'
 import Player from './Player.js'
 import Terrains from './Terrains.js'
 import Chunks from './Chunks.js'
+import ObstacleCourses from './ObstacleCourses.js'
 
 export default class State
 {
@@ -37,6 +38,7 @@ export default class State
         this.player = new Player()
         this.terrains = new Terrains()
         this.chunks = new Chunks()
+        this.obstacleCourses = new ObstacleCourses()
     }
 
     resize()
@@ -54,5 +56,6 @@ export default class State
         this.waveSets.update()
         this.player.update()
         this.chunks.update()
+        this.obstacleCourses.update()
     }
 }

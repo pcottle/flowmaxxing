@@ -130,6 +130,30 @@ export default class Particles
                 lifetime: 0.5
             })
         })
+
+        this.state.obstacleCourses.events.on('ringCollect', ({ position, direction }) =>
+        {
+            this.spawnWindMarks(16, position, {
+                angle: Math.atan2(direction[0], direction[2]),
+                spread: Math.PI * 1.4,
+                radius: 1.1,
+                speed: 4.4,
+                up: 1.3,
+                size: this.trickStreakSize * 1.45,
+                stretch: 2.1,
+                lifetime: 0.5
+            })
+
+            this.spawnCurlBurst(5, position, {
+                angle: Math.atan2(direction[0], direction[2]),
+                spread: Math.PI * 2,
+                radius: 1.2,
+                speed: 2.8,
+                up: 1.1,
+                size: this.jumpCurlSize * 0.9,
+                lifetime: 0.75
+            })
+        })
     }
 
     setGeometry()

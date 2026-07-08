@@ -177,6 +177,20 @@ export default class Audio
             this.playWhoosh({ startFrequency: 250, endFrequency: 900, duration: 0.5, volume: this.chimeVolume * (0.2 + intensity * 0.3), glint: false })
         })
 
+        this.state.obstacleCourses.events.on('ringCollect', ({ index }) =>
+        {
+            const scaleIndex = Math.min(2 + index, this.chimeFrequencies.length - 1)
+            const frequency = this.chimeFrequencies[scaleIndex] * (index > 3 ? 1.5 : 1)
+
+            this.playChime(frequency, this.chimeVolume * 0.85, 1.35)
+
+            if(index % 3 === 2)
+                this.playChime(frequency * 1.5, this.chimeVolume * 0.38, 1.5, 0.06)
+
+            this.rememberNote(frequency)
+            this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
+        })
+
         this.ready = true
     }
 

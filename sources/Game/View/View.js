@@ -3,6 +3,7 @@ import Camera from './Camera.js'
 import Chunks from './Chunks.js'
 import Grass from './Grass.js'
 import Noises from './Noises.js'
+import ObstacleCourses from './ObstacleCourses.js'
 import Particles from './Particles.js'
 import Player from './Player.js'
 import Props from './Props.js'
@@ -43,6 +44,7 @@ export default class View
         this.ribbon = new Ribbon()
         this.grass = new Grass()
         this.props = new Props()
+        this.obstacleCourses = new ObstacleCourses()
         this.particles = new Particles()
         this.audio = new Audio()
     }
@@ -66,6 +68,7 @@ export default class View
         this.ribbon.update()
         this.grass.update()
         this.props.update()
+        this.obstacleCourses.update()
         this.particles.update()
         this.audio.update()
         this.camera.update()
