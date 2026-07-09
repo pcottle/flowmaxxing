@@ -16,7 +16,7 @@ export default class ObstacleCourses
         this.time = this.state.time
         this.events = new EventsEmitter()
 
-        this.enabled = true
+        this.enabled = false
         this.minSpeed = 11
         this.minForwardRatio = 0.62
         this.minStableDot = 0.965

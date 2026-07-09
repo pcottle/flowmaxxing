@@ -253,6 +253,7 @@ export default class ProgressiveBounceCourses
         const marker = item.marker
         const revealed = pad.index <= course.revealedUntil
         const preview = pad.index === course.revealedUntil + 1 && course.completedAt === 0
+        const restartPad = course.failed && pad.index === 0
         const isNext = pad === nextPad
         const squashAge = this.time.elapsed - pad.lastBounceTime
         const squash = squashAge < this.squashDuration ? squashAge / this.squashDuration : 1
@@ -266,18 +267,22 @@ export default class ProgressiveBounceCourses
 
         if(pad.bounced)
             opacity *= Math.max(0.22, 1 - (this.time.elapsed - pad.bounceTime) / 0.8)
+        else if(pad.skipped)
+            opacity *= Math.max(0, 1 - (this.time.elapsed - pad.skipTime) / 0.5)
 
-        if(course.completedAt > 0 && course.failed)
+        if(restartPad)
+            opacity = 0.9
+        else if(course.completedAt > 0 && course.failed)
             opacity *= Math.max(0, 1 - (this.time.elapsed - course.completedAt) / this.fadeAfterComplete)
 
         group.visible = opacity > 0.01
         group.position.set(pad.position[0], pad.position[1], pad.position[2])
 
         this.tiltAxis.set(course.direction[0], 0, course.direction[2]).normalize()
-        this.tiltQuaternion.setFromAxisAngle(this.tiltAxis, - pad.tiltDirection * pad.tiltAngle)
+        this.tiltQuaternion.setFromAxisAngle(this.tiltAxis, pad.tiltDirection * pad.tiltAngle)
         group.quaternion.copy(this.tiltQuaternion)
 
-        const pulse = isNext ? 1 + Math.sin(this.time.elapsed * 5) * 0.08 : 1 + Math.sin(this.time.elapsed * 2 + pad.index * 0.6) * 0.035
+        const pulse = isNext || restartPad ? 1 + Math.sin(this.time.elapsed * 5) * 0.08 : 1 + Math.sin(this.time.elapsed * 2 + pad.index * 0.6) * 0.035
         group.scale.set(
             pad.radius * pulse * (1 + 0.34 * (1 - squash)),
             0.4 + 0.6 * squash,
@@ -288,8 +293,12 @@ export default class ProgressiveBounceCourses
 
         if(pad.bounced)
             this.color.lerp(this.completedColor, 0.7)
+        else if(pad.skipped)
+            this.color.lerp(this.completedColor, 0.45)
 
-        if(course.failed)
+        if(restartPad)
+            this.color.lerp(this.nextColor, 0.72)
+        else if(course.failed)
             this.color.lerp(this.failColor, 0.75)
         else if(isNext)
             this.color.lerp(this.nextColor, 0.65)
@@ -308,8 +317,8 @@ export default class ProgressiveBounceCourses
     {
         const item = this.getPrizeMesh()
         const mesh = item.mesh
-        const allBounced = course.pads.every(pad => pad.bounced)
-        let opacity = allBounced ? 0.9 : 0
+        const allResolved = course.pads.every(pad => pad.bounced || pad.skipped)
+        let opacity = allResolved ? 0.9 : 0
 
         if(prize.collected)
             opacity *= Math.max(0, 1 - (this.time.elapsed - prize.collectTime) / 0.45)
@@ -385,6 +394,7 @@ export default class ProgressiveBounceCourses
             if(
                 pad.index <= course.revealedUntil
                 && !pad.bounced
+                && !pad.skipped
                 && overlap < pad.radius
                 && player.position.current[1] > pad.position[1]
                 && (!shadowPad || pad.position[1] > shadowPad.position[1])

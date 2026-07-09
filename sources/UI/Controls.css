@@ -12,7 +12,7 @@
     pointer-events: none;
     user-select: none;
     opacity: 1;
-    transition: opacity 1.5s ease;
+    transition: opacity 0.75s ease;
 }
 
 .controls--hidden

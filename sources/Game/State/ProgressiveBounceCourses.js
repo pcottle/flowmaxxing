@@ -20,33 +20,45 @@ export default class ProgressiveBounceCourses
         this.minSpeed = 10
         this.minForwardRatio = 0.58
         this.minStableDot = 0.96
-        this.triggerTime = 4.4
-        this.cooldown = 38
+        this.triggerTime = 3.6
+        this.cooldown = 24
         this.cooldownTimer = 2
         this.blockedCourseCooldown = 7
 
         this.padCountMin = 8
         this.padCountMax = 14
         this.startDistance = 42
-        this.forwardGap = 10
-        this.forwardGapJitter = 3.5
-        this.lateralGap = 6.8
-        this.maxLateral = 16
+        this.fastStartDistanceBonus = 10
+        this.forwardGap = 12
+        this.fastForwardGapBonus = 6.5
+        this.forwardGapJitter = 5
+        this.lateralGap = 9
+        this.fastLateralGapBonus = 3
+        this.maxLateral = 22
         this.firstPadHeight = 1.1
-        this.heightBase = 3.4
-        this.verticalStep = 1.25
+        this.heightBase = 4.2
+        this.verticalStep = 2.35
+        this.padTerrainClearance = 1.7
+        this.sidePadTerrainClearance = 2.8
         this.visibleAhead = 3
-        this.padRadius = 2.45
-        this.narrowPadRadius = 1.9
-        this.angledPadChance = 0.62
+        this.padRadius = 2.25
+        this.narrowPadRadius = 1.65
+        this.angledPadChance = 0.72
         this.tiltAngle = Math.PI / 6
         this.launchVelocity = 18.2
         this.perfectBonusRatio = 1.1
-        this.horizontalLaunchSpeed = 17
+        this.forwardLaunchSpeed = 8.8
+        this.fastForwardLaunchBonus = 1.4
+        this.horizontalLaunchSpeed = 18.5
+        this.fastHorizontalLaunchBonus = 4
+        this.speedSpreadMax = 34
         this.padCooldown = 0.32
         this.missDistance = 12
+        this.restartRadius = 12
+        this.restartBacktrackDistance = 8
         this.fallGrace = 0.35
         this.expireDelay = 1.4
+        this.failedAbandonDistance = 110
         this.towerAvoidRadius = 16
         this.prizeHeight = 4
         this.prizeRadius = 2.5
@@ -147,21 +159,29 @@ export default class ProgressiveBounceCourses
         const sideZ = directionX
         const originX = player.position.current[0]
         const originZ = player.position.current[2]
+        const speedSpread = Math.min(Math.max((player.horizontalSpeed - this.minSpeed) / (this.speedSpreadMax - this.minSpeed), 0), 1)
+        const courseStartDistance = this.startDistance + speedSpread * this.fastStartDistanceBonus
+        const courseForwardGap = this.forwardGap + speedSpread * this.fastForwardGapBonus
+        const courseLateralGap = this.lateralGap + speedSpread * this.fastLateralGapBonus
+        const courseMaxLateral = this.maxLateral + speedSpread * 4
+        const courseForwardLaunchSpeed = this.forwardLaunchSpeed + speedSpread * this.fastForwardLaunchBonus
+        const courseSideLaunchSpeed = this.horizontalLaunchSpeed + speedSpread * this.fastHorizontalLaunchBonus
         const padCount = this.padCountMin
             + Math.floor(Math.random() * (this.padCountMax - this.padCountMin + 1))
             + Math.min(this.streak * this.streakPadBonus, 5)
         const pads = []
-        const steps = []
-        let distance = this.startDistance
+        let distance = courseStartDistance
         let lateral = 0
         let heightOffset = this.firstPadHeight
         let previousSide = Math.random() < 0.5 ? - 1 : 1
 
         for(let i = 0; i < padCount; i++)
         {
+            let currentSideStep = 0
+
             if(i > 0)
             {
-                distance += this.forwardGap + (Math.random() - 0.5) * this.forwardGapJitter
+                distance += courseForwardGap + (Math.random() - 0.5) * this.forwardGapJitter
 
                 const progress = i / Math.max(1, padCount - 1)
                 let sideStep = 0
@@ -171,21 +191,21 @@ export default class ProgressiveBounceCourses
                 {
                     let direction = Math.random() < 0.62 ? - previousSide : previousSide
 
-                    if(Math.abs(lateral + direction * this.lateralGap) > this.maxLateral)
+                    if(Math.abs(lateral + direction * courseLateralGap) > courseMaxLateral)
                         direction *= - 1
 
-                    sideStep = direction * this.lateralGap * (0.78 + progress * 0.35)
+                    sideStep = direction * courseLateralGap * (0.82 + progress * 0.42)
                     lateral += sideStep
                     previousSide = direction
+                    currentSideStep = sideStep
                 }
                 else
                 {
                     lateral *= 0.82
                 }
 
-                const climb = (Math.random() - 0.35) * this.verticalStep + Math.sin(i * 0.8) * 0.45
-                heightOffset = Math.max(this.firstPadHeight + 0.2, Math.min(this.heightBase + progress * 4.5, heightOffset + climb))
-                steps[i - 1] = sideStep
+                const climb = (Math.random() - 0.42) * this.verticalStep + Math.sin(i * 0.95) * 0.8
+                heightOffset = Math.max(this.firstPadHeight + 0.2, Math.min(this.heightBase + progress * 6.5, heightOffset + climb))
             }
 
             const z = originZ + directionZ * distance + sideZ * lateral
@@ -195,7 +215,7 @@ export default class ProgressiveBounceCourses
             if(elevation === false || !Number.isFinite(elevation))
                 return false
 
-            const radius = i > 3 && Math.random() < 0.22 + Math.min(this.streak, 4) * 0.04
+            const radius = i > 2 && Math.random() < 0.3 + Math.min(this.streak, 4) * 0.05
                 ? this.narrowPadRadius
                 : this.padRadius
 
@@ -216,12 +236,21 @@ export default class ProgressiveBounceCourses
                 tiltDirection: 0,
                 tiltAngle: 0,
                 launchVelocity: this.launchVelocity + Math.min(i, 8) * 0.18,
-                horizontalVelocity: vec3.fromValues(directionX * this.horizontalLaunchSpeed, 0, directionZ * this.horizontalLaunchSpeed),
+                horizontalVelocity: vec3.fromValues(directionX * courseForwardLaunchSpeed, 0, directionZ * courseForwardLaunchSpeed),
                 lastBounceTime: - 999,
                 bounced: false,
                 bounceTime: 0,
+                skipped: false,
+                skipTime: 0,
                 revealTime: i === 0 ? this.time.elapsed : 0
             })
+
+            const pad = pads[pads.length - 1]
+            const terrainClearance = Math.abs(currentSideStep) > 1.2
+                ? this.sidePadTerrainClearance
+                : this.padTerrainClearance
+
+            pad.position[1] = Math.max(pad.position[1], elevation + terrainClearance)
         }
 
         for(let i = 0; i < pads.length; i++)
@@ -233,13 +262,15 @@ export default class ProgressiveBounceCourses
             {
                 const dx = nextPad.position[0] - pad.position[0]
                 const dz = nextPad.position[2] - pad.position[2]
-                const length = Math.max(Math.hypot(dx, dz), 0.001)
                 const sideAmount = dx * sideX + dz * sideZ
+                // Positive side is course-right, negative side is course-left.
+                // The launch side always matches the visible tilt direction.
+                const tiltDirection = Math.abs(sideAmount) > 1.2 ? Math.sign(sideAmount) : 0
 
-                pad.horizontalVelocity[0] = dx / length * this.horizontalLaunchSpeed
-                pad.horizontalVelocity[2] = dz / length * this.horizontalLaunchSpeed
-                pad.tiltDirection = Math.abs(steps[i] ?? sideAmount) > 1.2 ? Math.sign(sideAmount || steps[i]) : 0
-                pad.tiltAngle = pad.tiltDirection === 0 ? 0 : this.tiltAngle
+                pad.tiltDirection = tiltDirection
+                pad.tiltAngle = tiltDirection === 0 ? 0 : this.tiltAngle
+                pad.horizontalVelocity[0] = directionX * courseForwardLaunchSpeed + sideX * tiltDirection * courseSideLaunchSpeed
+                pad.horizontalVelocity[2] = directionZ * courseForwardLaunchSpeed + sideZ * tiltDirection * courseSideLaunchSpeed
             }
         }
 
@@ -258,6 +289,7 @@ export default class ProgressiveBounceCourses
             started: false,
             revealedUntil: 0,
             streakLevel: this.streak,
+            speedSpread,
             lastBounceTime: - 999,
             origin: vec3.fromValues(originX, player.position.current[1], originZ),
             direction: vec3.fromValues(directionX, 0, directionZ),
@@ -274,12 +306,55 @@ export default class ProgressiveBounceCourses
         return true
     }
 
+    isPadResolved(pad)
+    {
+        return pad.bounced || pad.skipped
+    }
+
+    arePadsResolved(course = this.course)
+    {
+        return course.pads.every(pad => this.isPadResolved(pad))
+    }
+
+    canRestartAtBeginning(course, playerDistance, playerX, playerZ)
+    {
+        const firstPad = course.pads[0]
+        const nearFirstPad = Math.hypot(playerX - firstPad.position[0], playerZ - firstPad.position[2]) < this.restartRadius
+        const backAtStart = playerDistance < firstPad.distance + this.restartBacktrackDistance
+        const hasProgressToReset = course.failed || course.started || course.completedAt > 0 || course.pads.some(pad => pad.skipped)
+
+        return hasProgressToReset && nearFirstPad && backAtStart
+    }
+
+    restartAtBeginning(course)
+    {
+        course.completedAt = 0
+        course.failed = false
+        course.started = false
+        course.revealedUntil = 0
+        course.lastBounceTime = - 999
+        course.prize.collected = false
+        course.prize.collectTime = 0
+
+        for(const pad of course.pads)
+        {
+            pad.bounced = false
+            pad.bounceTime = 0
+            pad.skipped = false
+            pad.skipTime = 0
+            pad.lastBounceTime = - 999
+            pad.revealTime = pad.index === 0 ? this.time.elapsed : 0
+        }
+
+        this.events.emit('courseStart', course)
+    }
+
     getNextPad()
     {
         if(!this.course)
             return false
 
-        return this.course.pads.find(pad => !pad.bounced) ?? false
+        return this.course.pads.find(pad => !this.isPadResolved(pad)) ?? false
     }
 
     revealThrough(index)
@@ -297,10 +372,53 @@ export default class ProgressiveBounceCourses
         }
     }
 
+    skipPad(pad)
+    {
+        if(this.isPadResolved(pad))
+            return
+
+        pad.skipped = true
+        pad.skipTime = this.time.elapsed
+
+        if(pad.revealTime === 0)
+            pad.revealTime = this.time.elapsed
+    }
+
+    skipPadsBefore(index)
+    {
+        for(const pad of this.course.pads)
+        {
+            if(pad.index >= index)
+                break
+
+            this.skipPad(pad)
+        }
+    }
+
+    skipPassedPads(playerDistance)
+    {
+        if(!this.course.started)
+            return
+
+        for(const pad of this.course.pads)
+        {
+            if(pad.index > this.course.revealedUntil)
+                continue
+
+            if(this.isPadResolved(pad))
+                continue
+
+            if(playerDistance > pad.distance + this.missDistance)
+                this.skipPad(pad)
+        }
+    }
+
     bouncePad(pad, player)
     {
         const perfect = this.state.controls.keys.down.jump
         const verticalVelocity = pad.launchVelocity * (perfect ? this.perfectBonusRatio : 1)
+
+        this.skipPadsBefore(pad.index)
 
         player.position.current[1] = pad.position[1]
         player.launchFromPad(verticalVelocity, pad.horizontalVelocity)
@@ -346,15 +464,17 @@ export default class ProgressiveBounceCourses
             return
 
         const bounced = this.course.pads.filter(pad => pad.bounced).length
+        const skipped = this.course.pads.filter(pad => pad.skipped).length
         this.course.completedAt = this.time.elapsed
         this.course.failed = !perfect
-        this.streak = perfect && bounced === this.course.pads.length ? this.streak + 1 : 0
+        this.streak = perfect && skipped === 0 && bounced === this.course.pads.length ? this.streak + 1 : 0
 
         this.events.emit('courseComplete', {
             course: this.course,
             bounced,
+            skipped,
             total: this.course.pads.length,
-            perfect: perfect && bounced === this.course.pads.length,
+            perfect: perfect && skipped === 0 && bounced === this.course.pads.length,
             streak: this.streak
         })
     }
@@ -370,7 +490,7 @@ export default class ProgressiveBounceCourses
         {
             for(const pad of course.pads)
             {
-                if(pad.bounced || pad.index > course.revealedUntil)
+                if(this.isPadResolved(pad) || pad.index > course.revealedUntil)
                     continue
 
                 if(this.time.elapsed - pad.lastBounceTime < this.padCooldown)
@@ -389,7 +509,16 @@ export default class ProgressiveBounceCourses
 
         const prize = course.prize
 
-        if(!prize.collected && course.pads.every(pad => pad.bounced))
+        const toPlayerX = playerX - course.origin[0]
+        const toPlayerZ = playerZ - course.origin[2]
+        const playerDistance = toPlayerX * course.direction[0] + toPlayerZ * course.direction[2]
+
+        if(this.canRestartAtBeginning(course, playerDistance, playerX, playerZ))
+            this.restartAtBeginning(course)
+
+        this.skipPassedPads(playerDistance)
+
+        if(!prize.collected && this.arePadsResolved(course))
         {
             const distance = Math.hypot(
                 playerX - prize.position[0],
@@ -401,23 +530,20 @@ export default class ProgressiveBounceCourses
                 this.collectPrize(player)
         }
 
-        const nextPad = this.getNextPad()
-        const toPlayerX = playerX - course.origin[0]
-        const toPlayerZ = playerZ - course.origin[2]
-        const playerDistance = toPlayerX * course.direction[0] + toPlayerZ * course.direction[2]
-
-        if(course.completedAt === 0 && nextPad)
+        if(course.completedAt === 0)
         {
-            const farPast = playerDistance > nextPad.distance + this.missDistance
+            const nextPad = this.getNextPad()
             const landedAfterStart = course.started
                 && player.grounded
                 && this.time.elapsed - course.lastBounceTime > this.fallGrace
 
-            if(farPast || landedAfterStart || player.swimming)
+            if((nextPad || this.arePadsResolved(course)) && (landedAfterStart || player.swimming))
                 this.completeCourse(false)
         }
 
-        if(course.completedAt > 0 && this.time.elapsed - course.completedAt > this.expireDelay)
+        if(course.failed && playerDistance > course.pads[course.pads.length - 1].distance + this.failedAbandonDistance)
+            this.course = null
+        else if(course.completedAt > 0 && !course.failed && this.time.elapsed - course.completedAt > this.expireDelay)
             this.course = null
     }
 
@@ -469,11 +595,16 @@ export default class ProgressiveBounceCourses
         folder.add(this, 'padCountMax').min(3).max(24).step(1)
         folder.add(this, 'visibleAhead').min(1).max(6).step(1)
         folder.add(this, 'launchVelocity').min(10).max(28).step(0.1)
-        folder.add(this, 'horizontalLaunchSpeed').min(6).max(32).step(0.1)
+        folder.add(this, 'forwardLaunchSpeed').min(2).max(22).step(0.1)
+        folder.add(this, 'horizontalLaunchSpeed').min(6).max(36).step(0.1)
         folder.add(this, 'angledPadChance').min(0).max(1).step(0.01)
         folder.add(this, 'forwardGap').min(5).max(18).step(0.5)
+        folder.add(this, 'fastForwardGapBonus').min(0).max(10).step(0.5)
         folder.add(this, 'lateralGap').min(2).max(12).step(0.25)
+        folder.add(this, 'fastLateralGapBonus').min(0).max(6).step(0.25)
         folder.add(this, 'padRadius').min(1).max(5).step(0.1)
+        folder.add(this, 'restartRadius').min(2).max(30).step(0.5)
+        folder.add(this, 'failedAbandonDistance').min(20).max(250).step(5)
         folder.add({ spawn: () => this.spawnDebugCourse() }, 'spawn')
     }
 }

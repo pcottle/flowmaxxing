@@ -6,7 +6,7 @@ import './Controls.css'
 
 // Fade the controls out after this long of continuous movement, and back in
 // after this long of standing still
-const HIDE_AFTER = 10000
+const HIDE_AFTER = 1500
 const SHOW_AFTER = 10000
 const MOVING_SPEED = 1
 
