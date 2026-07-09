@@ -156,6 +156,9 @@ export default class Player
         if(this.camera.mode === Camera.MODE_FLY)
             return false
 
+        if(this.controls.stick.active)
+            return this.camera.thirdPerson.theta + this.controls.stick.angle
+
         if(!this.controls.keys.down.forward && !this.controls.keys.down.backward && !this.controls.keys.down.strafeLeft && !this.controls.keys.down.strafeRight)
             return false
 
@@ -288,7 +291,7 @@ export default class Player
         this.events.emit('ringRefill')
     }
 
-    launchFromPad(verticalVelocity)
+    launchFromPad(verticalVelocity, horizontalVelocity = null)
     {
         this.grounded = false
         this.swimming = false
@@ -297,6 +300,12 @@ export default class Player
         this.jumpCount = Math.min(this.jumpCount, 1)
         this.velocity[1] = verticalVelocity
         this.padJumpVelocity = verticalVelocity
+
+        if(horizontalVelocity)
+        {
+            this.velocity[0] = horizontalVelocity[0]
+            this.velocity[2] = horizontalVelocity[2]
+        }
     }
 
     getTerrainGradient(sample)

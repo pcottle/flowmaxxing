@@ -49,11 +49,16 @@ export default class CameraThirdPerson
 
     update()
     {
-        if(!this.padEventsBound && this.state.bouncePads)
+        if(!this.padEventsBound && this.state.bouncePads && this.state.progressiveBounceCourses)
         {
             this.padEventsBound = true
 
             this.state.bouncePads.events.on('padBounce', () =>
+            {
+                this.bounceTiltUntil = this.state.time.elapsed + this.bounceTiltHold
+            })
+
+            this.state.progressiveBounceCourses.events.on('padBounce', () =>
             {
                 this.bounceTiltUntil = this.state.time.elapsed + this.bounceTiltHold
             })

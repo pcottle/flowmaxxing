@@ -34,12 +34,32 @@ export default class DayCycle
         }
     }
 
+    // Jump the cycle to a fixed moment (the warp is zero at quarter points, so
+    // progress lands exactly); time keeps flowing from there if autoUpdate is on
+    jumpTo(progress)
+    {
+        this.timeProgress = progress
+        this.progress = progress
+    }
+
     setDebug()
     {
         if(!this.debug.active)
             return
 
         const folder = this.debug.ui.getFolder('state/dayCycle')
+
+        const moments = {
+            midday: () => this.jumpTo(0),
+            sunset: () => this.jumpTo(0.25),
+            midnight: () => this.jumpTo(0.5),
+            sunrise: () => this.jumpTo(0.75)
+        }
+
+        folder.add(moments, 'sunrise')
+        folder.add(moments, 'midday')
+        folder.add(moments, 'sunset')
+        folder.add(moments, 'midnight')
 
         folder
             .add(this, 'autoUpdate')
@@ -49,6 +69,7 @@ export default class DayCycle
             .min(0)
             .max(1)
             .step(0.001)
+            .listen()
 
         folder
             .add(this, 'duration')

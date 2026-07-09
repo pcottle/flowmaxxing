@@ -420,6 +420,10 @@ export default class ObstacleCourses
             return
 
         const player = this.state.player
+
+        if(this.state.progressiveBounceCourses?.course)
+            return
+
         this.cooldownTimer = Math.max(0, this.cooldownTimer - this.time.delta)
 
         if(this.course)

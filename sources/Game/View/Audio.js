@@ -269,6 +269,34 @@ export default class Audio
             this.playWhoosh({ startFrequency: 500, endFrequency: 2400, duration: 0.6, volume: this.chimeVolume * 0.7 })
         })
 
+        this.state.progressiveBounceCourses.events.on('padBounce', ({ index, perfect }) =>
+        {
+            const scaleIndex = Math.min(3 + index, this.chimeFrequencies.length - 1)
+            const frequency = this.chimeFrequencies[scaleIndex]
+
+            this.playWhoosh({ startFrequency: 180, endFrequency: 950, duration: 0.26, volume: this.chimeVolume * 0.65, glint: false })
+            this.playChime(frequency, this.chimeVolume * 0.82, 1.35)
+
+            if(perfect)
+                this.playChime(frequency * 1.5, this.chimeVolume * 0.46, 1.5, 0.05)
+
+            this.rememberNote(frequency)
+            this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
+        })
+
+        this.state.progressiveBounceCourses.events.on('prizeCollect', () =>
+        {
+            const steps = [6, 8, 9, 10]
+
+            for(let i = 0; i < steps.length; i++)
+            {
+                const frequency = this.chimeFrequencies[steps[i]] * (i === steps.length - 1 ? 2 : 1)
+                this.playChime(frequency, this.chimeVolume * (0.92 - i * 0.12), 1.8, i * 0.085)
+            }
+
+            this.playWhoosh({ startFrequency: 620, endFrequency: 2600, duration: 0.58, volume: this.chimeVolume * 0.72 })
+        })
+
         this.ready = true
     }
 

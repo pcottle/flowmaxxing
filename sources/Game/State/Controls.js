@@ -12,6 +12,9 @@ export default class Controls
 
         this.events = new EventsEmitter()
 
+        // Analog stick (touch joystick) — angle is relative to the camera, applied in Player.getInputRotation()
+        this.stick = { active: false, angle: 0 }
+
         this.setKeys()
         this.setPointer()
 
@@ -104,6 +107,16 @@ export default class Controls
         })
     }
 
+    setButton(name, isDown)
+    {
+        if(this.keys.down[name] === isDown)
+            return
+
+        this.keys.down[name] = isDown
+        this.events.emit(isDown ? 'keyDown' : 'keyUp', name)
+        this.events.emit(`${name}${isDown ? 'Down' : 'Up'}`)
+    }
+
     setPointer()
     {
         this.pointer = {}
@@ -111,21 +124,73 @@ export default class Controls
         this.pointer.deltaTemp = { x: 0, y: 0 }
         this.pointer.delta = { x: 0, y: 0 }
 
+        // The camera drags with the first pointer not claimed by the touch UI (joystick/buttons)
+        this.pointer.activeId = null
+        this.pointer.last = { x: 0, y: 0 }
+        this.pointer.claimed = new Set()
+
+        this.pointer.claim = (id) =>
+        {
+            this.pointer.claimed.add(id)
+
+            if(this.pointer.activeId === id)
+            {
+                this.pointer.activeId = null
+                this.pointer.down = false
+            }
+        }
+
+        this.pointer.release = (id) =>
+        {
+            this.pointer.claimed.delete(id)
+
+            if(this.pointer.activeId === id)
+            {
+                this.pointer.activeId = null
+                this.pointer.down = false
+            }
+        }
+
         window.addEventListener('pointerdown', (event) =>
         {
+            if(this.pointer.claimed.has(event.pointerId) || this.pointer.activeId !== null)
+                return
+
+            this.pointer.activeId = event.pointerId
             this.pointer.down = true
+            this.pointer.last.x = event.clientX
+            this.pointer.last.y = event.clientY
         })
 
         window.addEventListener('pointermove', (event) =>
         {
-            this.pointer.deltaTemp.x += event.movementX
-            this.pointer.deltaTemp.y += event.movementY
+            if(this.state.viewport?.pointerLock.active)
+            {
+                this.pointer.deltaTemp.x += event.movementX
+                this.pointer.deltaTemp.y += event.movementY
+            }
+            else if(event.pointerId === this.pointer.activeId)
+            {
+                this.pointer.deltaTemp.x += event.clientX - this.pointer.last.x
+                this.pointer.deltaTemp.y += event.clientY - this.pointer.last.y
+                this.pointer.last.x = event.clientX
+                this.pointer.last.y = event.clientY
+            }
         })
 
-        window.addEventListener('pointerup', () =>
+        const onPointerEnd = (event) =>
         {
-            this.pointer.down = false
-        })
+            this.pointer.claimed.delete(event.pointerId)
+
+            if(event.pointerId === this.pointer.activeId)
+            {
+                this.pointer.activeId = null
+                this.pointer.down = false
+            }
+        }
+
+        window.addEventListener('pointerup', onPointerEnd)
+        window.addEventListener('pointercancel', onPointerEnd)
     }
 
     update()

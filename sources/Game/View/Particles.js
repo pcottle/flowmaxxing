@@ -243,6 +243,55 @@ export default class Particles
                 lifetime: 0.9
             })
         })
+
+        this.state.progressiveBounceCourses.events.on('padBounce', ({ position, direction, perfect }) =>
+        {
+            this.spawnWindMarks(14, position, {
+                angle: Math.atan2(direction[0], direction[2]),
+                spread: Math.PI * 1.15,
+                radius: 1.7,
+                speed: 4.2,
+                up: 2.1,
+                size: this.trickStreakSize * 1.35,
+                stretch: 2,
+                lifetime: 0.5
+            })
+
+            if(perfect)
+                this.spawnCurlBurst(6, position, {
+                    angle: Math.atan2(direction[0], direction[2]),
+                    spread: Math.PI * 2,
+                    radius: 1.35,
+                    speed: 2.8,
+                    up: 2.1,
+                    size: this.jumpCurlSize,
+                    lifetime: 0.8
+                })
+        })
+
+        this.state.progressiveBounceCourses.events.on('prizeCollect', ({ position }) =>
+        {
+            this.spawnWindMarks(26, position, {
+                angle: 0,
+                spread: Math.PI * 2,
+                radius: 1.6,
+                speed: 5.2,
+                up: 2.8,
+                size: this.trickStreakSize * 1.65,
+                stretch: 2.1,
+                lifetime: 0.6
+            })
+
+            this.spawnCurlBurst(10, position, {
+                angle: 0,
+                spread: Math.PI * 2,
+                radius: 1.45,
+                speed: 3.2,
+                up: 2.4,
+                size: this.jumpCurlSize * 1.1,
+                lifetime: 0.9
+            })
+        })
     }
 
     setGeometry()

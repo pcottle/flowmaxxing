@@ -14,7 +14,7 @@ export default function FirefliesMaterial()
             uTime: { value: 0 },
             uSizeScale: { value: null },
             uSize: { value: 0.25 },
-            uDensity: { value: 1 },
+            uDensity: { value: 0.75 },
             uColor: { value: new THREE.Color('#ffe9a8') },
             uNight: { value: 0 },
             uOpacity: { value: 1 }

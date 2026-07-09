@@ -19,7 +19,7 @@ export default class Crabs
         this.scene = this.view.scene
 
         this.capacity = 10
-        this.count = 8
+        this.count = 6
         this.crabScale = 1
         this.fleeRadius = 4.5
         this.fleeSpeed = 4

@@ -13,6 +13,7 @@ import Noises from './Noises.js'
 import ObstacleCourses from './ObstacleCourses.js'
 import Particles from './Particles.js'
 import Player from './Player.js'
+import ProgressiveBounceCourses from './ProgressiveBounceCourses.js'
 import Props from './Props.js'
 import Rain from './Rain.js'
 import Rainbow from './Rainbow.js'
@@ -57,6 +58,7 @@ export default class View
         this.props = new Props()
         this.obstacleCourses = new ObstacleCourses()
         this.bouncePads = new BouncePads()
+        this.progressiveBounceCourses = new ProgressiveBounceCourses()
         this.cyclones = new Cyclones()
         this.particles = new Particles()
         this.rain = new Rain()
@@ -94,6 +96,7 @@ export default class View
         this.props.update()
         this.obstacleCourses.update()
         this.bouncePads.update()
+        this.progressiveBounceCourses.update()
         this.cyclones.update()
         this.particles.update()
         this.rain.update()
