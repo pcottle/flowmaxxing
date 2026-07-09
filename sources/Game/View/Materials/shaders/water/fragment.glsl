@@ -15,6 +15,9 @@ uniform float uRingPeriod;
 uniform float uRingMaxD;
 uniform float uDashLength;
 uniform float uRainIntensity;
+uniform vec2 uPlayerRipplePosition;
+uniform float uPlayerRipple;
+uniform float uRippleRadius;
 uniform float uWaveFoamWidth0;
 uniform float uWaveFoamWidth1;
 uniform float uWaveFoamIntensity0;
@@ -79,6 +82,15 @@ void main()
 
     // Solid crest band on the steep face of a set wave, scalloped threshold
     foam = max(foam, step(0.075 + scallop * 0.004, vCrestSlope));
+
+    // Player ripple: a breathing ring hugging the floating wisp plus crisp
+    // rings spreading outward — same flat white foam treatment
+    float playerDistance = distance(vWorldPosition.xz, uPlayerRipplePosition);
+    float ripplePhase = fract(playerDistance * 0.7 - uTime * 0.9);
+    float rippleFade = 1.0 - smoothstep(uRippleRadius * 0.5, uRippleRadius, playerDistance);
+    float playerRipple = step(0.82, ripplePhase) * rippleFade;
+    playerRipple = max(playerRipple, step(abs(playerDistance - 0.55 - sin(uTime * 2.0) * 0.08), 0.09));
+    foam = max(foam, playerRipple * uPlayerRipple);
 
     // Rain splash rings: hashed grid cells each run a short expanding ring,
     // more cells joining in as the rain builds

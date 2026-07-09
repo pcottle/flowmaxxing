@@ -190,6 +190,7 @@ export default class Water
         folder.add(uniforms.uRingPeriod, 'value').min(2).max(20).step(0.5).name('uRingPeriod')
         folder.add(uniforms.uRingMaxD, 'value').min(5).max(80).step(1).name('uRingMaxD')
         folder.add(uniforms.uDashLength, 'value').min(1).max(20).step(0.5).name('uDashLength')
+        folder.add(uniforms.uRippleRadius, 'value').min(1).max(8).step(0.1).name('uRippleRadius')
         folder.addColor(uniforms.uFoamColor, 'value').name('uFoamColor')
         folder.addColor(uniforms.uDeepColor, 'value').name('uDeepColor')
         folder.addColor(uniforms.uShallowColor, 'value').name('uShallowColor')
@@ -210,6 +211,16 @@ export default class Water
         uniforms.uOceanRampWidth.value = this.state.terrains.corridor.oceanRampWidth
         uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
         uniforms.uRainIntensity.value = this.state.weather.rainIntensity
+
+        // Player ripple rings ramp in with wading depth (full strength by
+        // ankle-to-knee deep, matching the swimming float draft) and dissolve on exit
+        this.playerRipple = this.playerRipple ?? 0
+        const wadeDepth = - playerState.position.current[1]
+        const rippleTarget = playerState.swimming ? 1 : Math.min(1, Math.max(0, wadeDepth / 0.5))
+        const rippleRate = rippleTarget > this.playerRipple ? 5 : 2.5
+        this.playerRipple += (rippleTarget - this.playerRipple) * Math.min(1, rippleRate * this.state.time.delta)
+        uniforms.uPlayerRipple.value = this.playerRipple
+        uniforms.uPlayerRipplePosition.value.set(playerState.position.current[0], playerState.position.current[2])
 
         uniforms.uWaveD0.value = waveSets.D0
         uniforms.uWaveWidth.value = waveSets.width

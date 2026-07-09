@@ -440,7 +440,7 @@ export default class Player
             const ratio = 1 - Math.exp(- steerRate * control * delta)
             const targetX = inputX * maxSpeed
             const targetZ = inputZ * maxSpeed
-            const movingAgainstInput = this.grounded && currentSpeed > 0.5 && this.velocity[0] * inputX + this.velocity[2] * inputZ < 0
+            const movingAgainstInput = currentSpeed > 0.5 && this.velocity[0] * inputX + this.velocity[2] * inputZ < 0
 
             if(movingAgainstInput)
             {

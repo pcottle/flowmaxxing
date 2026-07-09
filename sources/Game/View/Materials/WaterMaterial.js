@@ -35,6 +35,9 @@ export default function WaterMaterial()
             uRingMaxD: { value: 32 },
             uDashLength: { value: 6 },
             uRainIntensity: { value: 0 },
+            uPlayerRipplePosition: { value: new THREE.Vector2() },
+            uPlayerRipple: { value: 0 },
+            uRippleRadius: { value: 3 },
             uFogTexture: { value: null }
         },
         transparent: true,

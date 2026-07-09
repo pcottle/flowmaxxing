@@ -11,8 +11,9 @@ export default class DayCycle
         this.debug = Debug.getInstance()
 
         this.autoUpdate = true
-        this.timeProgress = 0
-        this.progress = 0
+        this.startProgresses = [0, 0.75, 0.25] // Day, sunrise, sunset
+        this.timeProgress = this.startProgresses[Math.floor(Math.random() * this.startProgresses.length)]
+        this.progress = this.timeProgress
         this.duration = 360 // Seconds
         this.goldenHourStretch = 0.6 // 0 = linear time, <1 keeps progress monotonic
 

@@ -1,4 +1,14 @@
+import { useEffect, useState } from 'react'
+
+import State from '@/State/State.js'
+
 import './Controls.css'
+
+// Fade the controls out after this long of continuous movement, and back in
+// after this long of standing still
+const HIDE_AFTER = 10000
+const SHOW_AFTER = 10000
+const MOVING_SPEED = 1
 
 function Key({ children, wide = false })
 {
@@ -21,8 +31,45 @@ function Control({ keys, label })
 
 export default function Controls()
 {
+    const [ hidden, setHidden ] = useState(false)
+
+    useEffect(() =>
+    {
+        let movingSince = null
+        let lastMovingTime = 0
+
+        const interval = setInterval(() =>
+        {
+            const player = State.getInstance()?.player
+
+            if(!player)
+                return
+
+            const now = performance.now()
+            const moving = player.horizontalSpeed > MOVING_SPEED || Math.abs(player.velocity[1]) > MOVING_SPEED
+
+            if(moving)
+            {
+                if(movingSince === null)
+                    movingSince = now
+
+                lastMovingTime = now
+
+                if(now - movingSince > HIDE_AFTER)
+                    setHidden(true)
+            }
+            else if(now - lastMovingTime > SHOW_AFTER)
+            {
+                movingSince = null
+                setHidden(false)
+            }
+        }, 250)
+
+        return () => clearInterval(interval)
+    }, [])
+
     return (
-        <div className="controls">
+        <div className={ hidden ? 'controls controls--hidden' : 'controls' }>
             <Control
                 label="move"
                 keys={

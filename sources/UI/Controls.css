@@ -11,6 +11,13 @@
     color: #ffffff;
     pointer-events: none;
     user-select: none;
+    opacity: 1;
+    transition: opacity 1.5s ease;
+}
+
+.controls--hidden
+{
+    opacity: 0;
 }
 
 .controls .control
