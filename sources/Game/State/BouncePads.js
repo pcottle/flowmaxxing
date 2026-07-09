@@ -24,7 +24,8 @@ export default class BouncePads
         this.towerInterval = 420
         this.firstTowerOffset = 300
         this.keepDistance = 600
-        this.padCount = 8
+        this.padCountMin = 9
+        this.padCountMax = 16
         this.padRadius = 2.6
         this.firstPadHeight = 1.3
         this.verticalGap = 3.2
@@ -68,6 +69,8 @@ export default class BouncePads
             z,
             phase: random() * Math.PI * 2,
             jitter: (random() - 0.5) * 6,
+            padCount: this.padCountMin + Math.floor(random() * (this.padCountMax - this.padCountMin + 1)),
+            endZ: z,
             built: false,
             pads: [],
             prize: null
@@ -88,12 +91,12 @@ export default class BouncePads
         if(elevation === false || !Number.isFinite(elevation))
             return
 
-        for(let i = 0; i < this.padCount; i++)
+        for(let i = 0; i < tower.padCount; i++)
         {
             // Spiral tightens toward the apex so the final bounces need less
             // travel, and the whole helix drifts down-beach so the climb keeps
             // carrying the run forward instead of circling in place
-            const progress = i / Math.max(1, this.padCount - 1)
+            const progress = i / Math.max(1, tower.padCount - 1)
             const radius = this.spiralRadius * (1 - progress * 0.4)
             const angle = tower.phase + i * this.spiralStep
 
@@ -111,6 +114,7 @@ export default class BouncePads
         }
 
         const topPad = tower.pads[tower.pads.length - 1]
+        tower.endZ = tower.z - (tower.padCount - 1) * this.forwardStep
 
         tower.prize = {
             position: [topPad.position[0], topPad.position[1] + this.prizeHeight, topPad.position[2]],
@@ -155,7 +159,9 @@ export default class BouncePads
 
         for(const tower of this.towers.values())
         {
-            if(!tower.built || Math.abs(tower.z - playerZ) > 60)
+            // The helix drifts forward, so gate on the tower's full z span
+            // rather than its base — tall towers end far down-beach
+            if(!tower.built || playerZ > tower.z + 60 || playerZ < tower.endZ - 60)
                 continue
 
             if(player.velocity[1] < 0 && this.previousPlayerY !== null)
@@ -246,6 +252,8 @@ export default class BouncePads
         const folder = this.debug.ui.getFolder('state/bouncePads')
 
         folder.add(this, 'enabled')
+        folder.add(this, 'padCountMin').min(3).max(20).step(1)
+        folder.add(this, 'padCountMax').min(3).max(24).step(1)
         folder.add(this, 'launchBase').min(10).max(26).step(0.5)
         folder.add(this, 'launchPerIndex').min(0).max(2).step(0.05)
         folder.add(this, 'verticalGap').min(1.5).max(6).step(0.1)

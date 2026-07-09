@@ -2,8 +2,11 @@ import Audio from './Audio.js'
 import BouncePads from './BouncePads.js'
 import Camera from './Camera.js'
 import Chunks from './Chunks.js'
+import Crabs from './Crabs.js'
 import Cyclones from './Cyclones.js'
+import Fireflies from './Fireflies.js'
 import Fish from './Fish.js'
+import Footprints from './Footprints.js'
 import Grass from './Grass.js'
 import HorizonIslands from './HorizonIslands.js'
 import Noises from './Noises.js'
@@ -60,6 +63,9 @@ export default class View
         this.rainbow = new Rainbow()
         this.seagulls = new Seagulls()
         this.fish = new Fish()
+        this.footprints = new Footprints()
+        this.crabs = new Crabs()
+        this.fireflies = new Fireflies()
         this.audio = new Audio()
     }
 
@@ -71,6 +77,7 @@ export default class View
         this.terrains.resize()
         this.particles.resize()
         this.rain.resize()
+        this.fireflies.resize()
     }
 
     update()
@@ -93,6 +100,9 @@ export default class View
         this.rainbow.update()
         this.seagulls.update()
         this.fish.update()
+        this.footprints.update()
+        this.crabs.update()
+        this.fireflies.update()
         this.audio.update()
         this.renderer.update()
     }
