@@ -1,0 +1,88 @@
+.touch-controls
+{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-family: Helvetica, Arial, sans-serif;
+    pointer-events: none;
+}
+
+.touch-controls .touch-joystick,
+.touch-controls .touch-button
+{
+    position: absolute;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.touch-controls .touch-joystick
+{
+    left: 24px;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    width: 128px;
+    height: 128px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.touch-controls .touch-joystick__nub
+{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 48px;
+    height: 48px;
+    margin: -24px 0 0 -24px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+
+.touch-controls .touch-button
+{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.touch-controls .touch-button:active
+{
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.touch-controls .touch-button--jump
+{
+    right: 24px;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    width: 88px;
+    height: 88px;
+}
+
+.touch-controls .touch-button--dash
+{
+    right: 128px;
+    bottom: max(24px, env(safe-area-inset-bottom));
+    width: 64px;
+    height: 64px;
+}
+
+.touch-controls .touch-button--crouch
+{
+    right: 36px;
+    bottom: calc(max(24px, env(safe-area-inset-bottom)) + 104px);
+    width: 56px;
+    height: 56px;
+}

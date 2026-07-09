@@ -28,6 +28,11 @@ export default class Seagulls
         this.excitementOverride = - 1
         this.cryIntervalMin = 7
         this.cryVolume = 0.035
+        this.dailyFollowDistance = 600
+        this.distanceSinceReturn = 0
+        this.dismissedUntilSunrise = false
+        this.wasInNight = false
+        this.lastFollowPosition = null
 
         this.anchor = new THREE.Vector3(0, 16, 0)
         // Spawn greeting: the flock starts swirling tight and low, with an
@@ -164,6 +169,7 @@ export default class Seagulls
         folder.add(this, 'bankGain').min(0).max(4).step(0.1)
         folder.add(this, 'excitementOverride').min(- 1).max(1).step(0.05)
         folder.add(this, 'cryIntervalMin').min(1).max(30).step(1)
+        folder.add(this, 'dailyFollowDistance').min(50).max(3000).step(50)
         folder.add({ cryNow: () => { this.cry() } }, 'cryNow')
     }
 
@@ -198,6 +204,55 @@ export default class Seagulls
         )
     }
 
+    resetDailyFollow()
+    {
+        this.distanceSinceReturn = 0
+        this.dismissedUntilSunrise = false
+        this.lastFollowPosition = null
+    }
+
+    updateDailyFollow(dayFactor, flockVisible, playerPosition)
+    {
+        const isNight = dayFactor <= 0.01
+
+        if(isNight)
+        {
+            this.wasInNight = true
+            this.lastFollowPosition = null
+            return
+        }
+
+        if(this.wasInNight)
+        {
+            this.wasInNight = false
+            this.resetDailyFollow()
+        }
+
+        if(!flockVisible || this.dismissedUntilSunrise)
+        {
+            this.lastFollowPosition = null
+            return
+        }
+
+        if(this.lastFollowPosition)
+        {
+            const dx = playerPosition[0] - this.lastFollowPosition.x
+            const dz = playerPosition[2] - this.lastFollowPosition.z
+            this.distanceSinceReturn += Math.hypot(dx, dz)
+        }
+
+        this.lastFollowPosition = {
+            x: playerPosition[0],
+            z: playerPosition[2]
+        }
+
+        if(this.distanceSinceReturn >= this.dailyFollowDistance)
+        {
+            this.dismissedUntilSunrise = true
+            this.lastFollowPosition = null
+        }
+    }
+
     update()
     {
         const delta = this.time.delta
@@ -213,11 +268,15 @@ export default class Seagulls
         const presence = dayFactor * beachFactor
         const flockVisible = presence > 0.01
 
-        this.body.visible = flockVisible
-        this.wingRight.visible = flockVisible
-        this.wingLeft.visible = flockVisible
+        this.updateDailyFollow(dayFactor, flockVisible, playerState.position.current)
 
-        if(!flockVisible)
+        const active = flockVisible && !this.dismissedUntilSunrise
+
+        this.body.visible = active
+        this.wingRight.visible = active
+        this.wingLeft.visible = active
+
+        if(!active)
             return
 
         const scale = this.gullScale * presence
