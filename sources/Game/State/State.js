@@ -14,6 +14,7 @@ import ObstacleCourses from './ObstacleCourses.js'
 import BouncePads from './BouncePads.js'
 import ProgressiveBounceCourses from './ProgressiveBounceCourses.js'
 import Tideline from './Tideline.js'
+import DuneMelody from './DuneMelody.js'
 import Cyclones from './Cyclones.js'
 
 export default class State
@@ -48,6 +49,7 @@ export default class State
         this.bouncePads = new BouncePads()
         this.progressiveBounceCourses = new ProgressiveBounceCourses()
         this.tideline = new Tideline()
+        this.duneMelody = new DuneMelody()
         this.cyclones = new Cyclones()
     }
 
@@ -71,6 +73,7 @@ export default class State
         this.bouncePads.update()
         this.progressiveBounceCourses.update()
         this.tideline.update()
+        this.duneMelody.update()
         this.cyclones.update()
     }
 }

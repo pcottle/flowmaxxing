@@ -28,6 +28,10 @@ export default class Cyclones
 
         this.setGeometries()
         this.setDebug()
+
+        // Pre-build one pooled entry so the cyclone shaders compile during the
+        // load-time renderer.compile() pre-warm instead of mid-run
+        this.createEntry()
     }
 
     setGeometries()

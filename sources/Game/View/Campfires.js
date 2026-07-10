@@ -57,6 +57,14 @@ export default class Campfires
         this.setGlowGeometry()
         this.setEmbers()
         this.setDebug()
+
+        // Pre-build one pooled group, parked in the scene invisible, so the
+        // flame/glow shaders compile during the load-time renderer.compile()
+        // pre-warm instead of the first night near a fire
+        const prewarmGroup = this.buildGroup()
+        prewarmGroup.visible = false
+        this.scene.add(prewarmGroup)
+        this.groupPool.push(prewarmGroup)
     }
 
     setLogGeometry()

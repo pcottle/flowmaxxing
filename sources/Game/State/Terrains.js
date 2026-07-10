@@ -6,7 +6,7 @@ import State from '@/State/State.js'
 import Debug from '@/Debug/Debug.js'
 import TerrainWorker from '@/Workers/Terrain.js?worker'
 import SimplexNoise from '@/Workers/SimplexNoise.js'
-import { getCorridorProfile, getBiomeWeights } from '@/Workers/CorridorProfile.js'
+import { getCorridorProfile, getBiomeWeights, getShoreX, getShoreSampleInto } from '@/Workers/CorridorProfile.js'
 import Terrain from './Terrain.js'
 
 export default class Terrains
@@ -191,14 +191,12 @@ export default class Terrains
 
     getCorridorSample(z)
     {
-        const profile = getCorridorProfile(this.shoreNoise, z, this.corridor, this.corridorOffsets, this.biomes)
+        return this.getCorridorSampleInto(z, {})
+    }
 
-        return {
-            shoreX: profile.shoreX,
-            wVolcanic: profile.weights[1],
-            wSavanna: profile.weights[2],
-            headland: profile.headland
-        }
+    getCorridorSampleInto(z, out)
+    {
+        return getShoreSampleInto(this.shoreNoise, z, this.corridor, this.corridorOffsets, out)
     }
 
     getBiomeWeights(z)
@@ -208,7 +206,7 @@ export default class Terrains
 
     getShoreX(z)
     {
-        return getCorridorProfile(this.shoreNoise, z, this.corridor, this.corridorOffsets, this.biomes).shoreX
+        return getShoreX(this.shoreNoise, z, this.corridor, this.corridorOffsets)
     }
 
     setWorkers()

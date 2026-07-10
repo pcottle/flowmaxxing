@@ -5,6 +5,7 @@ import Campfires from './Campfires.js'
 import Chunks from './Chunks.js'
 import Crabs from './Crabs.js'
 import Cyclones from './Cyclones.js'
+import DuneMelody from './DuneMelody.js'
 import Fireflies from './Fireflies.js'
 import Fish from './Fish.js'
 import Footprints from './Footprints.js'
@@ -66,6 +67,7 @@ export default class View
         this.playerShadow = new PlayerShadow()
         this.progressiveBounceCourses = new ProgressiveBounceCourses()
         this.tideline = new Tideline()
+        this.duneMelody = new DuneMelody()
         this.cyclones = new Cyclones()
         this.particles = new Particles()
         this.rain = new Rain()
@@ -79,6 +81,32 @@ export default class View
         this.sparkles = new Sparkles()
         this.sunShafts = new SunShafts()
         this.audio = new Audio()
+
+        this.prewarmShaders()
+    }
+
+    // three.js compiles a material's GLSL program on its first visible render,
+    // so effects that start hidden (fireflies, sparkles, sun shafts, campfire
+    // flames, cyclones) would each stall the frame the first time they appear
+    // mid-run. compile() only walks visible objects, so everything is revealed
+    // for one synchronous compile pass at load, then restored.
+    prewarmShaders()
+    {
+        const hidden = []
+
+        this.scene.traverse((object) =>
+        {
+            if(!object.visible)
+            {
+                hidden.push(object)
+                object.visible = true
+            }
+        })
+
+        this.renderer.instance.compile(this.scene, this.camera.instance)
+
+        for(const object of hidden)
+            object.visible = false
     }
 
     resize()
@@ -113,6 +141,7 @@ export default class View
         this.playerShadow.update()
         this.progressiveBounceCourses.update()
         this.tideline.update()
+        this.duneMelody.update()
         this.cyclones.update()
         this.particles.update()
         this.rain.update()

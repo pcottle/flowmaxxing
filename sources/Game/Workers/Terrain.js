@@ -1,8 +1,60 @@
 import SimplexNoise from './SimplexNoise.js'
 import { getCorridorProfile } from './CorridorProfile.js'
+import { duneMelodyConfig, getDuneMelodyFieldZ, getDuneMelodyFieldSpanZ, buildDuneMelodyField } from './DuneMelodyLayout.js'
 import { vec3 } from 'gl-matrix'
 
 let elevationRandom = null
+
+// Dune-melody mogul fields (see DuneMelodyLayout.js). Layouts are cached per
+// field index — the seed and shoreline params are constant per session, and
+// the cache is invalidated when they change (debug corridor tweaks)
+let duneMelodyContext = null
+let duneMelodyCacheKey = ''
+const duneMelodyFields = new Map()
+
+const getDuneMelodyBump = (x, z) =>
+{
+    const config = duneMelodyConfig
+    const spanZ = getDuneMelodyFieldSpanZ()
+    const pad = config.mogulRadius * 2 + config.spacingJitter
+    const kApprox = (- z - config.firstOffset) / config.interval
+    let bump = 0
+
+    for(let k = Math.floor(kApprox); k <= Math.ceil(kApprox); k++)
+    {
+        if(k < 0)
+            continue
+
+        const startZ = getDuneMelodyFieldZ(k)
+
+        if(z > startZ + pad || z < startZ - spanZ - pad)
+            continue
+
+        let field = duneMelodyFields.get(k)
+
+        if(!field)
+        {
+            const { corridor, corridorOffsets, biomes } = duneMelodyContext
+            field = buildDuneMelodyField(k, (fieldZ) => getCorridorProfile(elevationRandom, fieldZ, corridor, corridorOffsets, biomes).shoreX)
+            duneMelodyFields.set(k, field)
+        }
+
+        for(const mogul of field.moguls)
+        {
+            const dx = x - mogul.x
+            const dz = z - mogul.z
+            const distanceSq = dx * dx + dz * dz
+            const radiusSq = mogul.radius * mogul.radius
+
+            if(distanceSq > radiusSq * 4)
+                continue
+
+            bump += mogul.height * Math.exp(- distanceSq / radiusSq * 2.2)
+        }
+    }
+
+    return bump
+}
 
 const linearStep = (edgeMin, edgeMax, value) =>
 {
@@ -77,6 +129,10 @@ const getElevation = (x, z, profile, lacunarity, persistence, iterations, baseFr
         const mound = smoothStep(- 0.25, 0.6, m1 * 0.85 + m2 * 0.15)
         elevation += mound * profile.moundHeight * moundMask
     }
+
+    // Dune-melody mogul fields: deterministic sculpted bumps on the dry sand,
+    // shared with State/DuneMelody via DuneMelodyLayout.js (LOD-independent)
+    elevation += getDuneMelodyBump(x, z)
 
     // Terraced cliffs: jittered quantization of the structural elevation, applied
     // BEFORE the LOD-varying detail noise so terrace band positions never move
@@ -167,6 +223,17 @@ onmessage = function(event)
     const segments = subdivisions + 1
     elevationRandom = new SimplexNoise(seed)
     const grassRandom = new SimplexNoise(seed)
+
+    // Mogul layouts depend on the seed and the shoreline meander only —
+    // rebuild the cache if any of those change (debug corridor tweaks)
+    duneMelodyContext = { corridor, corridorOffsets, biomes }
+    const nextDuneMelodyCacheKey = `${seed}:${corridor.shoreBaseX}:${corridor.shoreMeanderAmplitude}:${corridor.shoreMeanderFrequency}:${corridor.headlandMeanderDamp}:${corridor.coveFrequency}`
+
+    if(nextDuneMelodyCacheKey !== duneMelodyCacheKey)
+    {
+        duneMelodyCacheKey = nextDuneMelodyCacheKey
+        duneMelodyFields.clear()
+    }
 
     /**
      * Corridor profile (depends on z only — cache one per row)

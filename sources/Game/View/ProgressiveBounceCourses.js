@@ -266,8 +266,6 @@ export default class ProgressiveBounceCourses
 
         if(pad.bounced)
             opacity = Math.max(0.42, opacity * Math.max(0.7, 1 - (this.time.elapsed - pad.bounceTime) / 0.9))
-        else if(pad.skipped)
-            opacity *= Math.max(0, 1 - (this.time.elapsed - pad.skipTime) / 0.5)
 
         if(restartPad)
             opacity = 0.9

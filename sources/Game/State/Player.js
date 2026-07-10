@@ -722,6 +722,10 @@ export default class Player
                             this.velocity[0] *= boostedSpeed / landingSpeed
                             this.velocity[2] *= boostedSpeed / landingSpeed
                             this.addFlow(bonus * 0.02)
+
+                            // Micro-skims stay silent, like land/splash below
+                            if(this.airTime > this.landEventMinAirTime)
+                                this.events.emit('butterLand', bonus)
                         }
                     }
                 }

@@ -18,6 +18,16 @@ export default class Water
         this.shoreSamplesCount = 256
         this.shoreWindow = 2048
 
+        // Refresh the shore band when the player drifts half a texel, a wave
+        // set starts a new cycle (new front jitter), or on a slow heartbeat
+        // that picks up live corridor tweaks from the debug UI
+        this.shoreSample = {}
+        this.shoreRefreshDistance = 4
+        this.shoreRefreshInterval = 0.5
+        this.shoreRefreshTimer = 0
+        this.shoreRefreshZ = 0
+        this.shoreWaveKs = [- 1, - 1]
+
         this.wakeStrength = 0
         this.wakeHeading = new THREE.Vector2(0, - 1)
         this.wakeDropTimer = 0
@@ -142,9 +152,7 @@ export default class Water
     }
 
     // Sampled from the same seeded noise as the terrain worker / WaveSets, so
-    // waves, foam and biome palettes track the exact simulation values. Cheap
-    // enough (256 samples) to refresh every frame, which also picks up live
-    // corridor tweaks from the debug UI.
+    // waves, foam and biome palettes track the exact simulation values.
     updateShoreTexture()
     {
         const terrains = this.state.terrains
@@ -152,11 +160,15 @@ export default class Water
         const playerZ = this.state.player.position.current[2]
 
         this.shoreZMin = playerZ - this.shoreWindow * 0.5
+        this.shoreRefreshZ = playerZ
+        this.shoreRefreshTimer = this.shoreRefreshInterval
+        this.shoreWaveKs[0] = waveSets.sets[0].k
+        this.shoreWaveKs[1] = waveSets.sets[1].k
 
         for(let i = 0; i < this.shoreSamplesCount; i++)
         {
             const z = this.shoreZMin + (i / (this.shoreSamplesCount - 1)) * this.shoreWindow
-            const sample = terrains.getCorridorSample(z)
+            const sample = terrains.getCorridorSampleInto(z, this.shoreSample)
 
             const iStride = i * 4
             this.shoreData[iStride] = sample.shoreX
@@ -218,7 +230,15 @@ export default class Water
         const sunState = this.state.sun
         const waveSets = this.state.waveSets
 
-        this.updateShoreTexture()
+        this.shoreRefreshTimer -= this.state.time.delta
+
+        if(this.shoreRefreshTimer <= 0
+            || Math.abs(playerState.position.current[2] - this.shoreRefreshZ) > this.shoreRefreshDistance
+            || waveSets.sets[0].k !== this.shoreWaveKs[0]
+            || waveSets.sets[1].k !== this.shoreWaveKs[1])
+        {
+            this.updateShoreTexture()
+        }
 
         const uniforms = this.material.uniforms
         uniforms.uTime.value = this.state.time.elapsed

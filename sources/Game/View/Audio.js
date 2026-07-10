@@ -20,6 +20,8 @@ export default class Audio
         this.windVolume = 0.05
         this.padVolume = 0.05
         this.chimeVolume = 0.1
+        this.whooshVolume = 0.1
+        this.splashVolume = 0.1
         this.reverbVolume = 0.4
         this.glideVolume = 0.05
         this.flowPadVolume = 0.06
@@ -91,7 +93,7 @@ export default class Audio
         this.state.cyclones.events.on('cycloneLaunch', () =>
         {
             // Big rising gust with a sparkle on top
-            this.playWhoosh({ startFrequency: 180, endFrequency: 2600, duration: 1.1, volume: this.chimeVolume * 0.9 })
+            this.playWhoosh({ startFrequency: 180, endFrequency: 2600, duration: 1.1, volume: this.whooshVolume * 0.9 })
             this.playChime(this.chimeFrequencies[4], this.chimeVolume * 0.6, 2, 0.15)
             this.playChime(this.chimeFrequencies[6], this.chimeVolume * 0.5, 2, 0.3)
         })
@@ -169,7 +171,7 @@ export default class Audio
                 this.rememberNote(this.chimeFrequencies[index] * 2)
             }
 
-            this.playWhoosh({ startFrequency: 700, endFrequency: 2600, duration: 0.45, volume: this.chimeVolume * 0.7 })
+            this.playWhoosh({ startFrequency: 700, endFrequency: 2600, duration: 0.45, volume: this.whooshVolume * 0.7 })
         })
 
         playerState.events.on('bounce', () =>
@@ -185,7 +187,7 @@ export default class Audio
         {
             // Soft low thud: a downward noise sweep with a quiet low A
             const intensity = Math.min(bumpSpeed / 20, 1)
-            this.playWhoosh({ startFrequency: 500, endFrequency: 150, duration: 0.18, volume: this.chimeVolume * (0.4 + intensity * 0.5), glint: false })
+            this.playWhoosh({ startFrequency: 500, endFrequency: 150, duration: 0.18, volume: this.whooshVolume * (0.4 + intensity * 0.5), glint: false })
             this.playChime(110, this.chimeVolume * 0.4 * (0.4 + intensity * 0.6), 0.6)
         })
 
@@ -193,7 +195,7 @@ export default class Audio
         {
             // Soft low breath when a crest lets go of the player
             const intensity = Math.min(Math.max(launchVy, 0) / 14, 1)
-            this.playWhoosh({ startFrequency: 250, endFrequency: 900, duration: 0.5, volume: this.chimeVolume * (0.2 + intensity * 0.3), glint: false })
+            this.playWhoosh({ startFrequency: 250, endFrequency: 900, duration: 0.5, volume: this.whooshVolume * (0.2 + intensity * 0.3), glint: false })
         })
 
         this.state.obstacleCourses.events.on('ringCollect', ({ index, type }) =>
@@ -208,7 +210,7 @@ export default class Audio
 
             // Trick rings get their own flavor on top of the ladder chime
             if(type === 'dive')
-                this.playWhoosh({ startFrequency: 1400, endFrequency: 300, duration: 0.3, volume: this.chimeVolume * 0.6, glint: false })
+                this.playWhoosh({ startFrequency: 1400, endFrequency: 300, duration: 0.3, volume: this.whooshVolume * 0.6, glint: false })
             else if(type === 'glide')
                 this.playChime(frequency * 2, this.chimeVolume * 0.4, 1.8)
             else if(type === 'dashGate')
@@ -232,7 +234,7 @@ export default class Audio
                     this.playChime(this.chimeFrequencies[steps[i]], this.chimeVolume * 0.8, 2, i * 0.11)
 
                 this.playChime(this.chimeFrequencies[10] * 2, this.chimeVolume * 0.55, 2.4, 0.36)
-                this.playWhoosh({ startFrequency: 600, endFrequency: 2600, duration: 0.7, volume: this.chimeVolume * 0.7 })
+                this.playWhoosh({ startFrequency: 600, endFrequency: 2600, duration: 0.7, volume: this.whooshVolume * 0.7 })
             }
             else
             {
@@ -248,7 +250,7 @@ export default class Audio
             const scaleIndex = Math.min(2 + index, this.chimeFrequencies.length - 1)
             const frequency = this.chimeFrequencies[scaleIndex]
 
-            this.playWhoosh({ startFrequency: 160, endFrequency: 750, duration: 0.28, volume: this.chimeVolume * 0.6, glint: false })
+            this.playWhoosh({ startFrequency: 160, endFrequency: 750, duration: 0.28, volume: this.whooshVolume * 0.6, glint: false })
             this.playChime(frequency, this.chimeVolume * 0.8, 1.4)
 
             if(perfect)
@@ -269,7 +271,7 @@ export default class Audio
                 this.playChime(frequency, this.chimeVolume * (0.9 - i * 0.12), 1.8, i * 0.09)
             }
 
-            this.playWhoosh({ startFrequency: 500, endFrequency: 2400, duration: 0.6, volume: this.chimeVolume * 0.7 })
+            this.playWhoosh({ startFrequency: 500, endFrequency: 2400, duration: 0.6, volume: this.whooshVolume * 0.7 })
         })
 
         this.state.progressiveBounceCourses.events.on('padBounce', ({ index, perfect }) =>
@@ -277,7 +279,7 @@ export default class Audio
             const scaleIndex = Math.min(3 + index, this.chimeFrequencies.length - 1)
             const frequency = this.chimeFrequencies[scaleIndex]
 
-            this.playWhoosh({ startFrequency: 180, endFrequency: 950, duration: 0.26, volume: this.chimeVolume * 0.65, glint: false })
+            this.playWhoosh({ startFrequency: 180, endFrequency: 950, duration: 0.26, volume: this.whooshVolume * 0.65, glint: false })
             this.playChime(frequency, this.chimeVolume * 0.82, 1.35)
 
             if(perfect)
@@ -297,13 +299,42 @@ export default class Audio
                 this.playChime(frequency, this.chimeVolume * (0.92 - i * 0.12), 1.8, i * 0.085)
             }
 
-            this.playWhoosh({ startFrequency: 620, endFrequency: 2600, duration: 0.58, volume: this.chimeVolume * 0.72 })
+            this.playWhoosh({ startFrequency: 620, endFrequency: 2600, duration: 0.58, volume: this.whooshVolume * 0.72 })
+        })
+
+        this.state.duneMelody.events.on('note', ({ index, bounceHop }) =>
+        {
+            // Butter landings play the rising phrase of the mogul field;
+            // bounce-hop landings add an octave glint on top
+            const scaleIndex = Math.min(2 + index, this.chimeFrequencies.length - 1)
+            const frequency = this.chimeFrequencies[scaleIndex]
+
+            this.playChime(frequency, this.chimeVolume * 0.85, 1.7)
+
+            if(bounceHop)
+                this.playChime(frequency * 2, this.chimeVolume * 0.4, 1.6, 0.06)
+
+            this.rememberNote(frequency)
+            this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
+        })
+
+        this.state.duneMelody.events.on('prizeCollect', () =>
+        {
+            const steps = [5, 7, 9, 10]
+
+            for(let i = 0; i < steps.length; i++)
+            {
+                const frequency = this.chimeFrequencies[steps[i]] * (i === steps.length - 1 ? 2 : 1)
+                this.playChime(frequency, this.chimeVolume * (0.9 - i * 0.12), 1.8, i * 0.09)
+            }
+
+            this.playWhoosh({ startFrequency: 520, endFrequency: 2500, duration: 0.62, volume: this.whooshVolume * 0.7 })
         })
 
         this.state.tideline.events.on('courseStart', () =>
         {
             // The ribbon lighting up: a soft rising shimmer and a low invite
-            this.playWhoosh({ startFrequency: 320, endFrequency: 1500, duration: 0.8, volume: this.chimeVolume * 0.45 })
+            this.playWhoosh({ startFrequency: 320, endFrequency: 1500, duration: 0.8, volume: this.whooshVolume * 0.45 })
             this.playChime(this.chimeFrequencies[1], this.chimeVolume * 0.45, 2.2, 0.2)
         })
 
@@ -332,7 +363,7 @@ export default class Audio
                 this.playChime(frequency, this.chimeVolume * (0.9 - i * 0.12), 1.8, i * 0.09)
             }
 
-            this.playWhoosh({ startFrequency: 550, endFrequency: 2500, duration: 0.6, volume: this.chimeVolume * 0.7 })
+            this.playWhoosh({ startFrequency: 550, endFrequency: 2500, duration: 0.6, volume: this.whooshVolume * 0.7 })
         })
 
         this.ready = true
@@ -719,7 +750,7 @@ export default class Audio
 
         const bodyGain = this.context.createGain()
         bodyGain.gain.setValueAtTime(0, now)
-        bodyGain.gain.linearRampToValueAtTime(this.chimeVolume * (0.5 + intensity * 0.7), now + 0.02)
+        bodyGain.gain.linearRampToValueAtTime(this.splashVolume * (0.5 + intensity * 0.7), now + 0.02)
         bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35)
 
         body.connect(bodyFilter)
@@ -742,7 +773,7 @@ export default class Audio
 
         const sprayGain = this.context.createGain()
         sprayGain.gain.setValueAtTime(0, now)
-        sprayGain.gain.linearRampToValueAtTime(this.chimeVolume * 0.3 * (0.4 + intensity * 0.6), now + 0.03)
+        sprayGain.gain.linearRampToValueAtTime(this.splashVolume * 0.3 * (0.4 + intensity * 0.6), now + 0.03)
         sprayGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25)
 
         spray.connect(sprayFilter)
@@ -868,7 +899,7 @@ export default class Audio
             return
 
         const now = this.context.currentTime
-        const peak = volume === null ? this.chimeVolume * 0.8 : volume
+        const peak = volume === null ? this.whooshVolume * 0.8 : volume
 
         // Breathy noise sweep
         const source = this.context.createBufferSource()
@@ -1084,8 +1115,10 @@ export default class Audio
                 this.pad.gain.gain.setTargetAtTime(this.padVolume, this.context.currentTime, 0.1)
         })
         folder.add(this, 'chimeVolume').min(0).max(0.3).step(0.01)
+        folder.add(this, 'whooshVolume').min(0).max(0.3).step(0.01)
+        folder.add(this, 'splashVolume').min(0).max(0.3).step(0.01)
         folder.add(this, 'glideVolume').min(0).max(0.2).step(0.005)
-        folder.add(this, 'flowPadVolume').min(0).max(0.15).step(0.005)
+        folder.add(this, 'flowPadVolume').min(0).max(0.15).step(0.005).name('flowNoiseVolume')
         folder.add(this, 'susVolume').min(0).max(0.15).step(0.005)
         folder.add(this, 'surfVolume').min(0).max(0.6).step(0.01)
         folder.add(this, 'crashVolume').min(0).max(0.8).step(0.01)

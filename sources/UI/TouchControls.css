@@ -78,11 +78,3 @@
     width: 64px;
     height: 64px;
 }
-
-.touch-controls .touch-button--crouch
-{
-    right: 36px;
-    bottom: calc(max(24px, env(safe-area-inset-bottom)) + 104px);
-    width: 56px;
-    height: 56px;
-}

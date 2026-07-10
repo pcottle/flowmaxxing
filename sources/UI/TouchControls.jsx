@@ -175,7 +175,6 @@ export default function TouchControls()
             <Joystick />
             <TouchButton name="jump" label="jump" className="touch-button--jump" />
             <TouchButton name="boost" label="dash" className="touch-button--dash" />
-            <TouchButton name="crouch" label="dive" className="touch-button--crouch" />
         </div>
     )
 }

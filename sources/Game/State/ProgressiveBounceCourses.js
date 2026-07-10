@@ -341,7 +341,11 @@ export default class ProgressiveBounceCourses
             const elevation = chunks.getElevationForPosition(x, z)
 
             if(elevation === false || !Number.isFinite(elevation))
+            {
+                this.cooldownTimer = this.blockedCourseCooldown
+                this.straightTimer = 0
                 return false
+            }
 
             const radius = widePad
                 ? this.padRadius
@@ -349,7 +353,8 @@ export default class ProgressiveBounceCourses
                 ? this.narrowPadRadius
                 : this.padRadius
 
-            if(this.overlapsBounceTower(x, z, radius))
+            if(this.overlapsBounceTower(x, z, radius)
+                || this.state.duneMelody?.overlapsField(x, z, radius))
             {
                 this.cooldownTimer = this.blockedCourseCooldown
                 this.straightTimer = 0
