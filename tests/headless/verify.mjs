@@ -119,7 +119,7 @@ check('state field 0 created and built', !!stateField && stateField.built)
 check('state layout matches shared layout', !!stateField && Math.abs(stateField.moguls[3].x - field0Layout.moguls[3].x) < 0.001 && Math.abs(stateField.moguls[3].z - field0Layout.moguls[3].z) < 0.001)
 
 /**
- * 2. Dune Melody — butter landing plays a note, flat landing does not
+ * 2. Dune Melody — any solid landing plays a note; butter landings are tagged
  */
 console.log('\n--- Dune Melody: notes ---')
 
@@ -143,6 +143,7 @@ await step(5)
 
 check('butter landing on mogul downslope emits butterLand', butterCount >= 1, `count ${butterCount}`)
 check('butter landing in field emits one note', notes.length === 1, `notes ${notes.length}`)
+check('butter landing note is tagged butter', notes.length === 1 && notes[0].butter === true)
 
 // Landing again at the same spot must not re-note (no hopping in place)
 player.grounded = false
@@ -165,6 +166,22 @@ player.velocity[2] = - 10
 await step(5)
 
 check('landing on the next mogul notes again', notes.length === 2, `notes ${notes.length}`)
+
+// A flat landing (straight down into the trough, no downslope carry) still
+// chimes now — the phrase rewards the rhythm, butter just brightens it
+const troughZ = (field0Layout.moguls[4].z + field0Layout.moguls[5].z) * 0.5
+const troughX = field0Layout.moguls[4].x
+const butterBefore = butterCount
+player.grounded = false
+player.airTime = 1
+teleport(troughX, troughZ, state.chunks.getElevationForPosition(troughX, troughZ) + 0.4)
+player.velocity[0] = 0
+player.velocity[1] = - 12
+player.velocity[2] = 0
+await step(5)
+
+check('flat trough landing emits a note', notes.length === 3, `notes ${notes.length}`)
+check('flat landing note is not tagged butter', notes.length === 3 && notes[2].butter === false && butterCount === butterBefore)
 
 /**
  * 3. Dune Melody — prize activates and collects, persists in the Set

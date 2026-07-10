@@ -26,8 +26,7 @@ export default class DuneMelody
         this.fieldMarginZ = 12
         this.fieldHalfWidth = 24
         this.notesRequired = 6
-        this.minNoteBonus = 0.3
-        this.minNoteImpact = 5
+        this.minNoteImpact = 3
         this.noteFlow = 0.08
         this.prizeHeight = 2.8
         this.prizeRadius = 2.5
@@ -35,12 +34,20 @@ export default class DuneMelody
 
         this.fields = new Map()
         this.collectedPrizes = new Set()
+        this.lastButterTime = - 999
 
         const player = this.state.player
 
-        player.events.on('butterLand', (bonus) =>
+        // Any solid landing in the field plays a note; a butter landing on the
+        // same frame (it fires first in Player) just tags the note as buttery
+        player.events.on('butterLand', () =>
         {
-            this.onLanding(bonus >= this.minNoteBonus, false)
+            this.lastButterTime = this.time.elapsed
+        })
+
+        player.events.on('land', (impactSpeed) =>
+        {
+            this.onLanding(impactSpeed >= this.minNoteImpact, false)
         })
 
         player.events.on('bounce', (impactSpeed) =>
@@ -175,6 +182,7 @@ export default class DuneMelody
             field,
             index: field.notes,
             bounceHop,
+            butter: this.lastButterTime === this.time.elapsed,
             position: vec3.fromValues(
                 player.position.current[0],
                 player.position.current[1],
@@ -269,7 +277,6 @@ export default class DuneMelody
 
         folder.add(this, 'enabled')
         folder.add(this, 'notesRequired').min(1).max(12).step(1)
-        folder.add(this, 'minNoteBonus').min(0).max(2).step(0.05)
         folder.add(this, 'minNoteImpact').min(0).max(12).step(0.5)
         folder.add(this, 'noteFlow').min(0).max(0.3).step(0.01)
         folder.add(this, 'prizeFlow').min(0).max(1).step(0.05)

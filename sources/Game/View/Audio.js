@@ -39,6 +39,7 @@ export default class Audio
         this.scales.major = [220, 246.94, 277.18, 329.63, 369.99, 440, 493.88, 554.37, 659.25, 739.99, 880]
         this.chimeFrequencies = this.scales.minor
         this.melodyIndex = 0
+        this.duneNoteTime = - 999
         this.melodyResetDelay = 2.5
         this.groundedTime = 0
         this.nextPluckTime = 0
@@ -116,6 +117,11 @@ export default class Audio
 
         playerState.events.on('land', (impactSpeed) =>
         {
+            // A mogul-field note already rang for this landing — the root
+            // cadence would pull the rising phrase down and bury it
+            if(this.time.elapsed === this.duneNoteTime)
+                return
+
             // Resolve the phrase to the root below the last played note; a
             // phrase that climbed high enough earns a two-note cadence
             const intensity = Math.min(impactSpeed / 12, 1)
@@ -302,18 +308,22 @@ export default class Audio
             this.playWhoosh({ startFrequency: 620, endFrequency: 2600, duration: 0.58, volume: this.whooshVolume * 0.72 })
         })
 
-        this.state.duneMelody.events.on('note', ({ index, bounceHop }) =>
+        this.state.duneMelody.events.on('note', ({ index, bounceHop, butter }) =>
         {
-            // Butter landings play the rising phrase of the mogul field;
-            // bounce-hop landings add an octave glint on top
+            // Every solid landing plays the rising phrase of the mogul field;
+            // butter landings add a fifth, bounce hops an octave glint on top
             const scaleIndex = Math.min(2 + index, this.chimeFrequencies.length - 1)
             const frequency = this.chimeFrequencies[scaleIndex]
 
             this.playChime(frequency, this.chimeVolume * 0.85, 1.7)
 
+            if(butter)
+                this.playChime(frequency * 1.5, this.chimeVolume * 0.4, 1.6, 0.05)
+
             if(bounceHop)
                 this.playChime(frequency * 2, this.chimeVolume * 0.4, 1.6, 0.06)
 
+            this.duneNoteTime = this.time.elapsed
             this.rememberNote(frequency)
             this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
         })

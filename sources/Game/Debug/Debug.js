@@ -30,7 +30,7 @@ export default class Debug
     show()
     {
         this.visible = true
-        this.ui.instance.show()
+        this.ui.show()
         this.stats.show()
 
         location.hash = 'debug'
@@ -39,7 +39,7 @@ export default class Debug
     hide()
     {
         this.visible = false
-        this.ui.instance.hide()
+        this.ui.hide()
         this.stats.hide()
 
         if(location.hash === '#debug')

@@ -69,9 +69,9 @@ export default class Rainbow
         if(!this.debug.active)
             return
 
-        const folder = this.debug.ui.getFolder('view/rainbow')
+        this.debug.ui.addQuickAction('🌈 rainbow', () => { this.show() })
 
-        folder.add({ rainbowNow: () => { this.show() } }, 'rainbowNow')
+        const folder = this.debug.ui.getFolder('view/rainbow')
         folder.add(this, 'distance').min(50).max(1200).step(5)
         folder.add(this, 'maxVisibility').min(0).max(1).step(0.05)
         folder.add(this, 'holdDuration').min(2).max(60).step(1)

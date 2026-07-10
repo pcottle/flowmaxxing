@@ -29,27 +29,49 @@ export default class WelcomeSign
         // Just down the beach from spawn (forward is -Z), up on the dry
         // sand to the player's left (-X, inland) so it frames the path
         // without blocking it
-        this.z = - 8 
-        this.shoreOffset = 20 
+        this.z = - 8
+        this.shoreOffset = 20
         this.yaw = 0.38
         this.scale = 2
         this.placed = false
 
-        this.random = new seedrandom('welcome-sign')
+        // Drawn in the prompt box AND written to the clipboard on click
+        this.promptText = 'Edit the appropriate config settings to play the MacOS sound "Bottle" for when you need input and Glass when you are done'
 
         this.setBoardTexture()
         this.setMeshes()
+        this.setInteraction()
         this.setDebug()
     }
 
     setBoardTexture()
     {
-        const width = 1024
-        const height = 1280
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const context = canvas.getContext('2d')
+        this.boardWidth = 1024
+        this.boardHeight = 1280
+        this.boardCanvas = document.createElement('canvas')
+        this.boardCanvas.width = this.boardWidth
+        this.boardCanvas.height = this.boardHeight
+        this.boardContext = this.boardCanvas.getContext('2d')
+
+        this.boardTexture = new THREE.CanvasTexture(this.boardCanvas)
+        this.boardTexture.anisotropy = this.view.renderer.instance.capabilities.getMaxAnisotropy()
+
+        this.drawBoard('normal')
+    }
+
+    // boardState: 'normal' | 'hover' | 'copied'. Re-seeding the rng per
+    // draw keeps every jittered chalk stroke identical across redraws, so
+    // state changes don't make the whole board shimmer.
+    drawBoard(boardState)
+    {
+        this.boardState = boardState
+        this.random = new seedrandom('welcome-sign')
+
+        const width = this.boardWidth
+        const height = this.boardHeight
+        const context = this.boardContext
+
+        context.globalAlpha = 1
 
         // Slate blackboard, mottled so it doesn't read as a flat fill
         const background = context.createLinearGradient(0, 0, 0, height)
@@ -206,20 +228,30 @@ export default class WelcomeSign
         // chalkLine(Array.from({ length: 30 }, (_, i) => [ 150 + i * ((width - 300) / 29), cursorY + Math.sin(i * 0.9) * 12 ]), 5, 0.5)
         cursorY += 80
 
-        // The prompt, framed in its own rough chalk box
+        // The prompt, framed in its own rough chalk box — clickable, so the
+        // box rect is recorded (in canvas pixels) for the raycast hit-test
         const boxTop = cursorY - 48
         const promptLineHeight = 58
         const promptBottom = chalkParagraph(
-            'Edit the appropriate config settings to play the MacOS sound "Bottle" for when you need input and Glass when you are done',
+            this.promptText,
             cursorY, 41, 790, { bold: false, alpha: 0.9, lineHeight: promptLineHeight }
         )
         const boxBottom = promptBottom - promptLineHeight + 46
-        chalkLine([ [ 82, boxTop ], [ width - 82, boxTop ], [ width - 82, boxBottom ], [ 82, boxBottom ], [ 82, boxTop + 4 ] ], 4, 0.4)
+        const boxAlpha = boardState === 'normal' ? 0.4 : 0.8
+        chalkLine([ [ 82, boxTop ], [ width - 82, boxTop ], [ width - 82, boxBottom ], [ 82, boxBottom ], [ 82, boxTop + 4 ] ], 4, boxAlpha)
 
-        chalk('— the tiki spirits', width - 120, height - 95, 42, { align: 'right', bold: false, alpha: 0.8, tilt: 0.015 })
+        this.promptRect = { x1: 82, y1: boxTop, x2: width - 82, y2: boxBottom }
 
-        this.boardTexture = new THREE.CanvasTexture(canvas)
-        this.boardTexture.anisotropy = this.view.renderer.instance.capabilities.getMaxAnisotropy()
+        const hintY = Math.min(boxBottom + 44, height - 26)
+
+        if(boardState === 'copied')
+            chalk('copied!', width / 2, hintY, 42, { alpha: 0.95, tilt: - 0.02 })
+        else
+            chalk('( click to copy )', width / 2, hintY, 34, { bold: false, alpha: boardState === 'hover' ? 0.9 : 0.5 })
+
+        chalk('— the tiki spirits', width - 120, height - 25, 42, { align: 'right', bold: false, alpha: 0.8, tilt: 0.015 })
+
+        this.boardTexture.needsUpdate = true
     }
 
     setMeshes()
@@ -345,14 +377,99 @@ export default class WelcomeSign
 
         // The chalk face, floating just off the slab front
         this.boardMaterial = new THREE.MeshBasicMaterial({ map: this.boardTexture })
-        const board = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 4.12), this.boardMaterial)
-        board.position.set(0, slabCenterY, 0.115)
-        this.group.add(board)
+        this.boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 4.12), this.boardMaterial)
+        this.boardMesh.position.set(0, slabCenterY, 0.115)
+        this.group.add(this.boardMesh)
 
         // A hair of lean so it reads as planted, not placed
         this.group.rotation.set(- 0.05, this.yaw, 0.015)
 
         this.scene.add(this.group)
+    }
+
+    setInteraction()
+    {
+        this.raycaster = new THREE.Raycaster()
+        this.pointerNdc = new THREE.Vector2()
+        this.pointerOnPrompt = false
+        this.pointerMoved = false
+        this.copiedUntil = 0
+        this.pressX = 0
+        this.pressY = 0
+
+        const setNdc = (event) =>
+        {
+            this.pointerNdc.x = (event.clientX / window.innerWidth) * 2 - 1
+            this.pointerNdc.y = - (event.clientY / window.innerHeight) * 2 + 1
+        }
+
+        window.addEventListener('pointermove', (event) =>
+        {
+            setNdc(event)
+            this.pointerMoved = true
+        })
+
+        window.addEventListener('pointerdown', (event) =>
+        {
+            this.pressX = event.clientX
+            this.pressY = event.clientY
+        })
+
+        window.addEventListener('pointerup', (event) =>
+        {
+            // A click/tap, not the tail end of a camera drag
+            if(Math.hypot(event.clientX - this.pressX, event.clientY - this.pressY) > 6)
+                return
+
+            setNdc(event)
+
+            if(this.hitPrompt())
+                this.copyPrompt()
+        })
+    }
+
+    // Ray from the cursor through the camera at the board plane; the
+    // intersection uv maps 1:1 onto the chalk canvas, so the hit-test is
+    // against the drawn prompt box itself
+    hitPrompt()
+    {
+        if(!this.placed || this.state.viewport?.pointerLock.active)
+            return false
+
+        this.raycaster.setFromCamera(this.pointerNdc, this.view.camera.instance)
+        const hit = this.raycaster.intersectObject(this.boardMesh, false)[0]
+
+        if(!hit || !hit.uv)
+            return false
+
+        const x = hit.uv.x * this.boardWidth
+        const y = (1 - hit.uv.y) * this.boardHeight
+
+        return x >= this.promptRect.x1 && x <= this.promptRect.x2
+            && y >= this.promptRect.y1 && y <= this.promptRect.y2
+    }
+
+    copyPrompt()
+    {
+        if(navigator.clipboard?.writeText)
+        {
+            navigator.clipboard.writeText(this.promptText).catch(() => {})
+        }
+        else
+        {
+            // Plain-http fallback (e.g. vite over LAN)
+            const textarea = document.createElement('textarea')
+            textarea.value = this.promptText
+            textarea.style.position = 'fixed'
+            textarea.style.opacity = '0'
+            document.body.appendChild(textarea)
+            textarea.select()
+            document.execCommand('copy')
+            textarea.remove()
+        }
+
+        this.copiedUntil = this.state.time.elapsed + 2
+        this.drawBoard('copied')
     }
 
     place()
@@ -408,6 +525,27 @@ export default class WelcomeSign
                 flame.material.uniforms.uIntensity.value = intensity
             }
         }
+
+        // Prompt hover/copy affordances — board redraws only on transitions
+        const copied = this.copiedUntil > elapsed
+
+        if(this.pointerMoved)
+        {
+            this.pointerMoved = false
+            const hovering = this.hitPrompt()
+
+            if(hovering !== this.pointerOnPrompt)
+            {
+                this.pointerOnPrompt = hovering
+                this.view.renderer.instance.domElement.style.cursor = hovering ? 'pointer' : ''
+
+                if(!copied)
+                    this.drawBoard(hovering ? 'hover' : 'normal')
+            }
+        }
+
+        if(this.boardState === 'copied' && !copied)
+            this.drawBoard(this.pointerOnPrompt ? 'hover' : 'normal')
     }
 
     setDebug()

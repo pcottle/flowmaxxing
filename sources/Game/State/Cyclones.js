@@ -212,5 +212,7 @@ export default class Cyclones
         folder.add(this, 'wanderSpeed').min(0).max(0.6).step(0.01)
         folder.add(this, 'launchFlow').min(0).max(1).step(0.05)
         folder.add({ spawn: () => this.spawnDebugCyclone() }, 'spawn')
+
+        this.debug.ui.addQuickAction('🌪️ cyclone', () => this.spawnDebugCyclone())
     }
 }

@@ -47,6 +47,9 @@ export default class DayCycle
         if(!this.debug.active)
             return
 
+        this.debug.ui.addQuickAction('🌅 sunrise', () => this.jumpTo(0.75))
+        this.debug.ui.addQuickAction('🌇 sunset', () => this.jumpTo(0.25))
+
         const folder = this.debug.ui.getFolder('state/dayCycle')
 
         const moments = {

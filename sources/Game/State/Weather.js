@@ -123,11 +123,11 @@ export default class Weather
         if(!this.debug.active)
             return
 
-        const folder = this.debug.ui.getFolder('state/weather')
+        this.debug.ui.addQuickAction('☔ rain now', () => { this.startRain() })
+        this.debug.ui.addQuickAction('🌂 stop rain', () => { this.stopRain() })
+        this.debug.ui.addQuickAction('⚡ strike now', () => { this.strike() })
 
-        folder.add({ rainNow: () => { this.startRain() } }, 'rainNow')
-        folder.add({ stopRain: () => { this.stopRain() } }, 'stopRain')
-        folder.add({ strikeNow: () => { this.strike() } }, 'strikeNow')
+        const folder = this.debug.ui.getFolder('state/weather')
         folder.add(this, 'rainIntervalMin').min(10).max(600).step(5)
         folder.add(this, 'rainIntervalMax').min(10).max(900).step(5)
         folder.add(this, 'rainDuration').min(5).max(180).step(1)
