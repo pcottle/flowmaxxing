@@ -24,12 +24,12 @@ export default class Audio
         this.splashVolume = 0.1
         this.reverbVolume = 0.4
         this.glideVolume = 0.05
-        this.flowPadVolume = 0.06
+        this.flowNoiseVolume = 0.015
         this.susVolume = 0.015
         this.surfVolume = 0.3
         this.crashVolume = 0.3
-        this.rainVolume = 0.12
-        this.thunderVolume = 0.4
+        this.rainVolume = 0.07
+        this.thunderVolume = 0.95
         this.fireVolume = 0.15
         this.nextCrackleTime = 0
 
@@ -606,18 +606,18 @@ export default class Audio
 
     setRain()
     {
-        // Rain hiss: the shared noise bed sped up and pushed through a high
-        // bandpass so it sits above the wind and surf rather than thickening them
+        // Rain wash: a softened noise band that sits above the surf without
+        // turning into bright white-noise hiss.
         this.rain = {}
         this.rain.source = this.context.createBufferSource()
         this.rain.source.buffer = this.getNoiseBuffer()
         this.rain.source.loop = true
-        this.rain.source.playbackRate.value = 1.5
+        this.rain.source.playbackRate.value = 1.15
 
         this.rain.filter = this.context.createBiquadFilter()
         this.rain.filter.type = 'bandpass'
-        this.rain.filter.frequency.value = 3000
-        this.rain.filter.Q.value = 0.5
+        this.rain.filter.frequency.value = 1700
+        this.rain.filter.Q.value = 0.35
 
         this.rain.gain = this.context.createGain()
         this.rain.gain.gain.value = 0
@@ -1006,7 +1006,7 @@ export default class Audio
         }
 
         // Flow adds a high harmonic voice as the player chains tricks
-        this.pad.flow.gain.gain.setTargetAtTime(playerState.flow * this.flowPadVolume, now, 0.5)
+        this.pad.flow.gain.gain.setTargetAtTime(playerState.flow * this.flowNoiseVolume, now, 0.5)
 
         // Long flights hang on a soft suspended 4th, resolved by the landing root
         const suspended = !playerState.grounded && playerState.airTime > 2
@@ -1100,35 +1100,43 @@ export default class Audio
         if(!this.debug.active)
             return
 
-        const folder = this.debug.ui.getFolder('view/audio')
+        const masterFolder = this.debug.ui.getFolder('audio/master')
+        const musicFolder = this.debug.ui.getFolder('audio/music')
+        const movementFolder = this.debug.ui.getFolder('audio/movement')
+        const environmentFolder = this.debug.ui.getFolder('audio/environment')
+        const weatherFolder = this.debug.ui.getFolder('audio/weather')
 
-        folder.add(this, 'muted').onChange(() => { this.setMuted(this.muted) })
-        folder.add(this, 'masterVolume').min(0).max(1).step(0.01).onChange(() =>
+        masterFolder.add(this, 'muted').onChange(() => { this.setMuted(this.muted) })
+        masterFolder.add(this, 'masterVolume').min(0).max(1).step(0.01).onChange(() =>
         {
             if(this.ready && !this.muted)
                 this.masterGain.gain.setTargetAtTime(this.masterVolume, this.context.currentTime, 0.1)
         })
-        folder.add(this, 'windVolume').min(0).max(0.5).step(0.01)
-        folder.add(this, 'padVolume').min(0).max(0.3).step(0.01).onChange(() =>
-        {
-            if(this.ready)
-                this.pad.gain.gain.setTargetAtTime(this.padVolume, this.context.currentTime, 0.1)
-        })
-        folder.add(this, 'chimeVolume').min(0).max(0.3).step(0.01)
-        folder.add(this, 'whooshVolume').min(0).max(0.3).step(0.01)
-        folder.add(this, 'splashVolume').min(0).max(0.3).step(0.01)
-        folder.add(this, 'glideVolume').min(0).max(0.2).step(0.005)
-        folder.add(this, 'flowPadVolume').min(0).max(0.15).step(0.005).name('flowNoiseVolume')
-        folder.add(this, 'susVolume').min(0).max(0.15).step(0.005)
-        folder.add(this, 'surfVolume').min(0).max(0.6).step(0.01)
-        folder.add(this, 'crashVolume').min(0).max(0.8).step(0.01)
-        folder.add(this, 'rainVolume').min(0).max(0.5).step(0.01)
-        folder.add(this, 'thunderVolume').min(0).max(1).step(0.01)
-        folder.add(this, 'fireVolume').min(0).max(0.5).step(0.01)
-        folder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
+        masterFolder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
         {
             if(this.ready)
                 this.reverb.output.gain.setTargetAtTime(this.reverbVolume, this.context.currentTime, 0.1)
         })
+
+        musicFolder.add(this, 'padVolume').min(0).max(0.3).step(0.01).onChange(() =>
+        {
+            if(this.ready)
+                this.pad.gain.gain.setTargetAtTime(this.padVolume, this.context.currentTime, 0.1)
+        })
+        musicFolder.add(this, 'chimeVolume').min(0).max(0.3).step(0.01)
+        musicFolder.add(this, 'susVolume').min(0).max(0.15).step(0.005)
+
+        movementFolder.add(this, 'whooshVolume').min(0).max(0.3).step(0.01)
+        movementFolder.add(this, 'splashVolume').min(0).max(0.3).step(0.01)
+        movementFolder.add(this, 'glideVolume').min(0).max(0.2).step(0.005)
+        movementFolder.add(this, 'flowNoiseVolume').min(0).max(0.15).step(0.005)
+
+        environmentFolder.add(this, 'windVolume').min(0).max(0.5).step(0.01)
+        environmentFolder.add(this, 'surfVolume').min(0).max(0.6).step(0.01)
+        environmentFolder.add(this, 'crashVolume').min(0).max(0.8).step(0.01)
+        environmentFolder.add(this, 'fireVolume').min(0).max(0.5).step(0.01)
+
+        weatherFolder.add(this, 'rainVolume').min(0).max(0.5).step(0.01)
+        weatherFolder.add(this, 'thunderVolume').min(0).max(1).step(0.01)
     }
 }

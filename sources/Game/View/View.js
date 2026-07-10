@@ -29,6 +29,7 @@ import SunShafts from './SunShafts.js'
 import Tideline from './Tideline.js'
 import Terrains from './Terrains.js'
 import Water from './Water.js'
+import WelcomeSign from './WelcomeSign.js'
 
 import * as THREE from 'three'
 
@@ -78,6 +79,7 @@ export default class View
         this.crabs = new Crabs()
         this.fireflies = new Fireflies()
         this.campfires = new Campfires()
+        this.welcomeSign = new WelcomeSign()
         this.sparkles = new Sparkles()
         this.sunShafts = new SunShafts()
         this.audio = new Audio()
@@ -152,6 +154,7 @@ export default class View
         this.crabs.update()
         this.fireflies.update()
         this.campfires.update()
+        this.welcomeSign.update()
         this.sparkles.update()
         this.sunShafts.update()
         this.audio.update()
