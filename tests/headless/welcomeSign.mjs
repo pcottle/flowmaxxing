@@ -59,8 +59,9 @@ const check = (label, ok, detail = '') =>
 await step(120)
 
 // Same placement math as View/WelcomeSign.js
-const SIGN_Z = - 14
-const SHORE_OFFSET = 5
+const SIGN_Z = - 8
+const SHORE_OFFSET = 20
+const SCALE = 2
 
 const signX = state.terrains.getShoreX(SIGN_Z) - SHORE_OFFSET
 const elevation = state.chunks.getElevationForPosition(signX, SIGN_Z)
@@ -75,11 +76,12 @@ check('sign is near spawn (8–30m)', spawnDistance > 8 && spawnDistance < 30, `
 
 const lateral = Math.abs(signX - spawnX)
 check('sign is off the straight-ahead line (>2m lateral)', lateral > 2, `lateral=${lateral.toFixed(1)}m`)
+check('sign is on the player\'s left (inland, -X of spawn)', signX < spawnX, `signX=${signX.toFixed(1)} spawnX=${spawnX.toFixed(1)}`)
 
 // Register the same collider the view registers, then walk the player
 // straight at the sign and confirm the push-out keeps them off it
 state.propsColliders.setGroup('welcomeSign', [
-    { x: signX, z: SIGN_Z, y: elevation, radius: 1.6, height: 5.2 }
+    { x: signX, z: SIGN_Z, y: elevation, radius: 1.6 * SCALE, height: 5.2 * SCALE }
 ])
 
 state.player.position.current[0] = signX
@@ -95,7 +97,7 @@ const finalDistance = Math.hypot(
     state.player.position.current[0] - signX,
     state.player.position.current[2] - SIGN_Z
 )
-check('walking into the sign pushes out (stays >1.4m from center)', finalDistance > 1.4, `distance=${finalDistance.toFixed(2)}m`)
+check('walking into the sign pushes out (stays outside collider)', finalDistance > 1.4 * SCALE, `distance=${finalDistance.toFixed(2)}m`)
 
 console.log(failures === 0 ? '\nAll welcome-sign checks passed' : `\n${failures} check(s) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

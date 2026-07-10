@@ -6,6 +6,7 @@ import Game from '@/Game.js'
 import View from '@/View/View.js'
 import State from '@/State/State.js'
 import Debug from '@/Debug/Debug.js'
+import FlameMaterial from './Materials/FlameMaterial.js'
 
 /**
  * One-off welcome tablet planted in the sand just ahead of spawn: a tiki
@@ -25,11 +26,13 @@ export default class WelcomeSign
 
         this.scene = this.view.scene
 
-        // Just down the beach from spawn (forward is -Z), nudged toward the
-        // ocean side so it frames the path without blocking it
-        this.z = - 14
-        this.shoreOffset = 5
-        this.yaw = 0.14
+        // Just down the beach from spawn (forward is -Z), up on the dry
+        // sand to the player's left (-X, inland) so it frames the path
+        // without blocking it
+        this.z = - 8 
+        this.shoreOffset = 20 
+        this.yaw = 0.38
+        this.scale = 2
         this.placed = false
 
         this.random = new seedrandom('welcome-sign')
@@ -136,11 +139,11 @@ export default class WelcomeSign
 
         // Chalk border, drawn inside the slab like someone framed their notes
         const inset = 38
-        chalkLine([ [ inset, inset ], [ width - inset, inset ], [ width - inset, height - inset ], [ inset, height - inset ], [ inset, inset + 4 ] ], 5, 0.45)
+        //chalkLine([ [ inset, inset ], [ width - inset, inset ], [ width - inset, height - inset ], [ inset, height - inset ], [ inset, inset + 4 ] ], 5, 0.45)
 
         // Doodle: a sun in the top corner
-        const sunX = 130
-        const sunY = 150
+        const sunX = 100
+        const sunY = 100
         chalkLine(Array.from({ length: 17 }, (_, i) => [ sunX + Math.cos(i * Math.PI / 8) * 34, sunY + Math.sin(i * Math.PI / 8) * 34 ]), 5, 0.55)
 
         for(let i = 0; i < 8; i++)
@@ -152,36 +155,66 @@ export default class WelcomeSign
             ], 5, 0.55)
         }
 
-        chalk('ALOHA, RIDER', width / 2, 128, 46, { alpha: 0.85, tilt: - 0.01 })
-        chalk('FLOWMAXXING', width / 2, 218, 104, { tilt: 0.005 })
+        chalk('Welcome to', width / 2, 128, 46, { alpha: 0.85, tilt: - 0.01 })
+        chalk('WaitingFor.AI', width / 2, 248, 104, { tilt: 0.005 })
 
         // Squiggle underline
-        chalkLine(Array.from({ length: 24 }, (_, i) => [ 220 + i * ((width - 440) / 23), 285 + Math.sin(i * 1.1) * 7 ]), 6, 0.6)
+        chalkLine(Array.from({ length: 24 }, (_, i) => [ 225 + i * ((width - 440) / 23), 325 + Math.sin(i * 1.1) * 7 ]), 6, 0.6)
 
-        // Controls: keys down the left, actions down the right
-        const rows = [
-            [ 'WASD', 'move' ],
-            [ 'SPACE', 'jump (twice!)' ],
-            [ 'HOLD SPACE', 'glide' ],
-            [ 'SHIFT', 'boost' ],
-            [ 'C', 'carve / dive' ],
-        ]
-
-        let rowY = 400
-        for(const [ key, action ] of rows)
+        // Word-wrapped chalk paragraph, centered; returns the y below it
+        const chalkParagraph = (text, y, size, maxWidth, { bold = true, alpha = 1, lineHeight = size * 1.4 } = {}) =>
         {
-            chalk(key, 105, rowY, 52, { align: 'left', tilt: (this.random() - 0.5) * 0.01 })
-            chalk(action, width - 105, rowY, 52, { align: 'right', bold: false, alpha: 0.9 })
-            chalkLine([ [ 380, rowY + 6 ], [ width - 400, rowY + 6 ] ], 3, 0.18)
-            rowY += 92
+            context.font = chalkFont(size, bold)
+
+            const lines = []
+            let line = ''
+
+            for(const word of text.split(' '))
+            {
+                const attempt = line === '' ? word : `${line} ${word}`
+
+                if(context.measureText(attempt).width > maxWidth && line !== '')
+                {
+                    lines.push(line)
+                    line = word
+                }
+                else
+                {
+                    line = attempt
+                }
+            }
+
+            if(line !== '')
+                lines.push(line)
+
+            for(const outputLine of lines)
+            {
+                chalk(outputLine, width / 2, y, size, { bold, alpha })
+                y += lineHeight
+            }
+
+            return y
         }
 
-        // Divider wave
-        chalkLine(Array.from({ length: 30 }, (_, i) => [ 150 + i * ((width - 300) / 29), rowY + 10 + Math.sin(i * 0.9) * 12 ]), 5, 0.5)
+        let cursorY = chalkParagraph(
+            'The chillest place to wait for your coding agents. Drop the prompt below into Claude, Codex, or OpenCode to turn on your island chimes; then kick back here, catch a vibe, and let the code cook 🌴🔔',
+            420, 48, 860, { alpha: 0.95 }
+        )
 
-        chalk('speed + tricks = FLOW', width / 2, rowY + 105, 58, { tilt: - 0.006 })
-        chalk('flow makes you faster.', width / 2, rowY + 185, 48, { bold: false, alpha: 0.9 })
-        chalk('never stop moving.', width / 2, rowY + 255, 48, { bold: false, alpha: 0.9 })
+        // Divider wave
+        cursorY += 12
+        // chalkLine(Array.from({ length: 30 }, (_, i) => [ 150 + i * ((width - 300) / 29), cursorY + Math.sin(i * 0.9) * 12 ]), 5, 0.5)
+        cursorY += 80
+
+        // The prompt, framed in its own rough chalk box
+        const boxTop = cursorY - 48
+        const promptLineHeight = 58
+        const promptBottom = chalkParagraph(
+            'Edit the appropriate config settings to play the MacOS sound "Bottle" for when you need input and Glass when you are done',
+            cursorY, 41, 790, { bold: false, alpha: 0.9, lineHeight: promptLineHeight }
+        )
+        const boxBottom = promptBottom - promptLineHeight + 46
+        chalkLine([ [ 82, boxTop ], [ width - 82, boxTop ], [ width - 82, boxBottom ], [ 82, boxBottom ], [ 82, boxTop + 4 ] ], 4, 0.4)
 
         chalk('— the tiki spirits', width - 120, height - 95, 42, { align: 'right', bold: false, alpha: 0.8, tilt: 0.015 })
 
@@ -262,6 +295,8 @@ export default class WelcomeSign
         const postX = slabWidth / 2 + 0.28
         const postTop = slabCenterY + slabHeight / 2 + 0.35
 
+        this.torchFlames = []
+
         for(const side of [ - 1, 1 ])
         {
             const post = paint(new THREE.CylinderGeometry(0.13, 0.16, postTop + 0.8, 7), 0.38, 0.26, 0.15)
@@ -275,6 +310,33 @@ export default class WelcomeSign
             parts.push(paint(new THREE.BoxGeometry(0.09, 0.16, 0.1).translate(side * postX, headY + 0.01, 0.09), 0.52, 0.35, 0.18))
             parts.push(paint(new THREE.BoxGeometry(0.24, 0.07, 0.06).translate(side * postX, headY - 0.14, 0.09), 0.16, 0.10, 0.07))
             parts.push(paint(new THREE.BoxGeometry(0.4, 0.07, 0.36).translate(side * postX, headY - 0.235, - 0.08), 0.30, 0.19, 0.10))
+
+            // Tiki torch flame above each head — the sign's night light
+            // (crossed cutout planes, same recipe as the campfires)
+            const flameParts = []
+
+            for(let i = 0; i < 3; i++)
+            {
+                const plane = new THREE.PlaneGeometry(0.45, 0.7)
+                plane.translate(0, 0.35, 0)
+                plane.rotateY(i * Math.PI / 3)
+
+                const phases = new Float32Array(plane.attributes.position.count)
+                phases.fill(i * 2.1)
+                plane.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1))
+
+                flameParts.push(plane)
+            }
+
+            const flameMaterial = new FlameMaterial()
+            flameMaterial.uniforms.uSeed.value = 31 + side * 7.3
+
+            const flame = new THREE.Mesh(mergeBufferGeometries(flameParts), flameMaterial)
+            flame.position.set(side * postX, headY + 0.24, - 0.08)
+            flame.visible = false
+            flame.userData.seed = side * 2.7
+            this.group.add(flame)
+            this.torchFlames.push(flame)
         }
 
         this.frameMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
@@ -301,13 +363,14 @@ export default class WelcomeSign
         if(elevation === false || !Number.isFinite(elevation) || elevation <= 0.05)
             return
 
-        this.group.position.set(x, elevation - 0.15, this.z)
+        this.group.position.set(x, elevation - 0.15 * this.scale, this.z)
+        this.group.scale.setScalar(this.scale)
         this.group.visible = true
         this.placed = true
 
         // Block walking through the slab; anything airborne clears it
         this.state.propsColliders.setGroup('welcomeSign', [
-            { x, z: this.z, y: elevation, radius: 1.6, height: 5.2 }
+            { x, z: this.z, y: elevation, radius: 1.6 * this.scale, height: 5.2 * this.scale }
         ])
     }
 
@@ -316,11 +379,35 @@ export default class WelcomeSign
         if(!this.placed)
             this.place()
 
-        // Day prop: dim with the sun like the campfire logs and crabs
-        const day = THREE.MathUtils.smoothstep(this.state.sun.position.y, - 0.2, 0.25)
-        const tint = 0.35 + 0.65 * day
-        this.frameMaterial.color.setRGB(tint, tint, tint * 1.08)
-        this.boardMaterial.color.setRGB(tint, tint, tint * 1.08)
+        const sunY = this.state.sun.position.y
+        const day = THREE.MathUtils.smoothstep(sunY, - 0.2, 0.25)
+
+        // Torch-lit: unlike the campfire logs, the sign barely dims at
+        // night — the board keeps a warm readable glow, the frame a bit less
+        const boardTint = 0.82 + 0.18 * day
+        this.boardMaterial.color.setRGB(boardTint, boardTint * (0.93 + 0.07 * day), boardTint * (0.84 + 0.24 * day))
+
+        const frameTint = 0.6 + 0.4 * day
+        this.frameMaterial.color.setRGB(frameTint, frameTint * (0.93 + 0.07 * day), frameTint * (0.84 + 0.24 * day))
+
+        // Torches follow the campfire rules: alive at night, damped by rain
+        const night = 1 - THREE.MathUtils.smoothstep(sunY, - 0.02, 0.12)
+        const presence = night * (1 - 0.85 * this.state.weather.rainIntensity)
+        const elapsed = this.state.time.elapsed
+
+        for(const flame of this.torchFlames)
+        {
+            const flicker = 0.88 + 0.12 * Math.sin(elapsed * 2.3 + flame.userData.seed)
+            const intensity = presence * flicker
+
+            flame.visible = intensity > 0.05
+
+            if(flame.visible)
+            {
+                flame.material.uniforms.uTime.value = elapsed
+                flame.material.uniforms.uIntensity.value = intensity
+            }
+        }
     }
 
     setDebug()
@@ -337,7 +424,8 @@ export default class WelcomeSign
         }
 
         folder.add(this, 'z').min(- 60).max(0).step(1).onChange(replace)
-        folder.add(this, 'shoreOffset').min(0).max(14).step(0.5).onChange(replace)
+        folder.add(this, 'shoreOffset').min(0).max(30).step(0.5).onChange(replace)
+        folder.add(this, 'scale').min(0.5).max(4).step(0.1).onChange(replace)
         folder.add(this.group.rotation, 'y').min(- 1).max(1).step(0.01).name('yaw')
     }
 }
