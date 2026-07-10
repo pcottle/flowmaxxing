@@ -12,3 +12,10 @@ No purpose, just having fun.
 npm install
 npm run dev
 ```
+
+## GitHub Pages
+
+This project must be deployed from the Vite build output, not the repository root.
+The GitHub Actions workflow builds `dist/` and publishes that folder to Pages.
+
+In the repository settings, set Pages to use **GitHub Actions** as the source.

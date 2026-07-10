@@ -25,6 +25,7 @@ import Seagulls from './Seagulls.js'
 import Sky from './Sky.js'
 import Sparkles from './Sparkles.js'
 import SunShafts from './SunShafts.js'
+import Tideline from './Tideline.js'
 import Terrains from './Terrains.js'
 import Water from './Water.js'
 
@@ -64,6 +65,7 @@ export default class View
         this.bouncePads = new BouncePads()
         this.playerShadow = new PlayerShadow()
         this.progressiveBounceCourses = new ProgressiveBounceCourses()
+        this.tideline = new Tideline()
         this.cyclones = new Cyclones()
         this.particles = new Particles()
         this.rain = new Rain()
@@ -91,6 +93,7 @@ export default class View
         this.campfires.resize()
         this.sparkles.resize()
         this.sunShafts.resize()
+        this.tideline.resize()
     }
 
     update()
@@ -109,6 +112,7 @@ export default class View
         this.bouncePads.update()
         this.playerShadow.update()
         this.progressiveBounceCourses.update()
+        this.tideline.update()
         this.cyclones.update()
         this.particles.update()
         this.rain.update()

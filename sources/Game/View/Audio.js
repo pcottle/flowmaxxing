@@ -300,6 +300,41 @@ export default class Audio
             this.playWhoosh({ startFrequency: 620, endFrequency: 2600, duration: 0.58, volume: this.chimeVolume * 0.72 })
         })
 
+        this.state.tideline.events.on('courseStart', () =>
+        {
+            // The ribbon lighting up: a soft rising shimmer and a low invite
+            this.playWhoosh({ startFrequency: 320, endFrequency: 1500, duration: 0.8, volume: this.chimeVolume * 0.45 })
+            this.playChime(this.chimeFrequencies[1], this.chimeVolume * 0.45, 2.2, 0.2)
+        })
+
+        this.state.tideline.events.on('segment', ({ index }) =>
+        {
+            // Each completed stretch of the ribbon climbs the ladder
+            const scaleIndex = Math.min(1 + index, this.chimeFrequencies.length - 1)
+            const frequency = this.chimeFrequencies[scaleIndex]
+
+            this.playChime(frequency, this.chimeVolume * 0.75, 1.6)
+
+            if(index % 3 === 0)
+                this.playChime(frequency * 1.5, this.chimeVolume * 0.35, 1.6, 0.07)
+
+            this.rememberNote(frequency)
+            this.melodyIndex = Math.min(Math.max(this.melodyIndex, scaleIndex + 1), this.chimeFrequencies.length - 1)
+        })
+
+        this.state.tideline.events.on('prizeCollect', () =>
+        {
+            const steps = [4, 6, 8, 10]
+
+            for(let i = 0; i < steps.length; i++)
+            {
+                const frequency = this.chimeFrequencies[steps[i]] * (i === steps.length - 1 ? 2 : 1)
+                this.playChime(frequency, this.chimeVolume * (0.9 - i * 0.12), 1.8, i * 0.09)
+            }
+
+            this.playWhoosh({ startFrequency: 550, endFrequency: 2500, duration: 0.6, volume: this.chimeVolume * 0.7 })
+        })
+
         this.ready = true
     }
 

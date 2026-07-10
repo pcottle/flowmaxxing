@@ -279,7 +279,7 @@ export default class ProgressiveBounceCourses
 
     createCourse(player)
     {
-        if(this.state.obstacleCourses?.course)
+        if(this.state.obstacleCourses?.course || this.state.tideline?.course)
             return false
 
         const chunks = this.state.chunks
@@ -844,7 +844,7 @@ export default class ProgressiveBounceCourses
             return
         }
 
-        if(this.state.obstacleCourses?.course)
+        if(this.state.obstacleCourses?.course || this.state.tideline?.course)
         {
             this.previousPlayerY = player.position.current[1]
             return
