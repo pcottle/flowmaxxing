@@ -8,6 +8,7 @@ import SkyBackgroundMaterial from './Materials/SkyBackgroundMaterial.js'
 import SkySphereMaterial from './Materials/SkySphereMaterial.js'
 import StarsMaterial from './Materials/StarsMaterial.js'
 import CloudsMaterial from './Materials/CloudsMaterial.js'
+import MoonMaterial from './Materials/MoonMaterial.js'
 
 export default class Sky
 {
@@ -137,14 +138,11 @@ export default class Sky
         this.moon = {}
         this.moon.distance = this.outerDistance - 50
 
-        const geometry = new THREE.CircleGeometry(0.012 * this.moon.distance, 32)
-        const material = new THREE.MeshBasicMaterial({
-            color: '#e8f0ff',
-            transparent: true,
-            opacity: 0,
-            depthWrite: false
-        })
-        this.moon.mesh = new THREE.Mesh(geometry, material)
+        // Disc is oversized: the crescent body fills the inner ~40%, the outer
+        // band hosts the stepped halo rings (all drawn in the shader)
+        const geometry = new THREE.CircleGeometry(0.035 * this.moon.distance, 32)
+        this.moon.material = new MoonMaterial()
+        this.moon.mesh = new THREE.Mesh(geometry, this.moon.material)
         this.group.add(this.moon.mesh)
     }
 
@@ -185,6 +183,9 @@ export default class Sky
             const positionArray = new Float32Array(this.stars.count * 3)
             const sizeArray = new Float32Array(this.stars.count)
             const colorArray = new Float32Array(this.stars.count * 3)
+            const twinklePhaseArray = new Float32Array(this.stars.count)
+            const twinkleSpeedArray = new Float32Array(this.stars.count)
+            const twinkleStrengthArray = new Float32Array(this.stars.count)
 
             for(let i = 0; i < this.stars.count; i++)
             {
@@ -201,18 +202,35 @@ export default class Sky
                 // Size
                 sizeArray[i] = Math.pow(Math.random() * 0.9, 10) + 0.1
 
-                // Color
+                // Color: mostly blue-white and warm-white, the odd gold/red
+                // accent — full-hue confetti reads as fairy lights, not stars
                 const color = new THREE.Color()
-                color.setHSL(Math.random(), 1, 0.5 + Math.random() * 0.5)
+                const roll = Math.random()
+
+                if(roll < 0.65)
+                    color.setHSL(0.60 + Math.random() * 0.06, 0.25 + Math.random() * 0.2, 0.75 + Math.random() * 0.15)
+                else if(roll < 0.95)
+                    color.setHSL(0.09 + Math.random() * 0.04, 0.30 + Math.random() * 0.2, 0.75 + Math.random() * 0.15)
+                else
+                    color.setHSL(Math.random() < 0.5 ? 0.02 : 0.13, 0.8, 0.65)
+
                 colorArray[iStride3    ] = color.r
                 colorArray[iStride3 + 1] = color.g
                 colorArray[iStride3 + 2] = color.b
+
+                // Twinkle: only ~30% pulse strongly
+                twinklePhaseArray[i] = Math.random() * Math.PI * 2
+                twinkleSpeedArray[i] = 0.8 + Math.random() * 1.7
+                twinkleStrengthArray[i] = Math.random() < 0.3 ? 1 : 0.25
             }
 
             const geometry = new THREE.BufferGeometry()
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positionArray, 3))
             geometry.setAttribute('aSize', new THREE.Float32BufferAttribute(sizeArray, 1))
             geometry.setAttribute('aColor', new THREE.Float32BufferAttribute(colorArray, 3))
+            geometry.setAttribute('aTwinklePhase', new THREE.Float32BufferAttribute(twinklePhaseArray, 1))
+            geometry.setAttribute('aTwinkleSpeed', new THREE.Float32BufferAttribute(twinkleSpeedArray, 1))
+            geometry.setAttribute('aTwinkleStrength', new THREE.Float32BufferAttribute(twinkleStrengthArray, 1))
             
             // Dispose of old one
             if(this.stars.geometry)
@@ -277,6 +295,16 @@ export default class Sky
         starsFolder.add(this.stars, 'count').min(100).max(50000).step(100).name('count').onChange(() => { this.stars.update() })
         starsFolder.add(this.stars.material.uniforms.uSize, 'value').min(0).max(1).step(0.0001).name('uSize')
         starsFolder.add(this.stars.material.uniforms.uBrightness, 'value').min(0).max(1).step(0.001).name('uBrightness')
+        starsFolder.add(this.stars.material.uniforms.uTwinkleAmount, 'value').min(0).max(1).step(0.01).name('uTwinkleAmount')
+
+        // Moon
+        const moonFolder = this.debug.ui.getFolder('view/sky/moon')
+
+        moonFolder.add(this.moon.material.uniforms.uMoonRadius, 'value').min(0.1).max(0.6).step(0.01).name('uMoonRadius')
+        moonFolder.add(this.moon.material.uniforms.uPhase, 'value').min(0).max(1.3).step(0.01).name('uPhase')
+        moonFolder.add(this.moon.material.uniforms.uHaloIntensity, 'value').min(0).max(1).step(0.01).name('uHaloIntensity')
+        moonFolder.addColor(this.moon.material.uniforms.uColorMoon, 'value').name('uColorMoon')
+        moonFolder.addColor(this.moon.material.uniforms.uColorRim, 'value').name('uColorRim')
     }
 
     update()
@@ -331,7 +359,8 @@ export default class Sky
             playerState.position.current[1],
             playerState.position.current[2]
         )
-        this.moon.mesh.material.opacity = nightness
+        // Hide behind the storm deck like the sun disc
+        this.moon.material.uniforms.uNightness.value = nightness * (1 - weatherState.rainIntensity * 0.8)
 
         // Shooting star
         const time = this.state.time
@@ -378,6 +407,7 @@ export default class Sky
         // Stars
         this.stars.material.uniforms.uSunPosition.value.set(sunState.position.x, sunState.position.y, sunState.position.z)
         this.stars.material.uniforms.uHeightFragments.value = this.viewport.height * this.viewport.clampedPixelRatio
+        this.stars.material.uniforms.uTime.value = this.state.time.elapsed
 
         // Render in render target
         const sourceCamera = this.view.camera.instance

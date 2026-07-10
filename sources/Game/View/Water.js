@@ -18,6 +18,14 @@ export default class Water
         this.shoreSamplesCount = 256
         this.shoreWindow = 2048
 
+        this.wakeStrength = 0
+        this.wakeHeading = new THREE.Vector2(0, - 1)
+        this.wakeDropTimer = 0
+        this.wakeTrailIndex = 0
+        this.wakeDropInterval = 0.15
+        this.wakeMinSpeed = 1.2
+        this.wakeFullSpeed = 3.5
+
         this.setShoreTexture()
         this.setMaterial()
         this.setDebug()
@@ -191,6 +199,14 @@ export default class Water
         folder.add(uniforms.uRingMaxD, 'value').min(5).max(80).step(1).name('uRingMaxD')
         folder.add(uniforms.uDashLength, 'value').min(1).max(20).step(0.5).name('uDashLength')
         folder.add(uniforms.uRippleRadius, 'value').min(1).max(8).step(0.1).name('uRippleRadius')
+        folder.add(uniforms.uWakeSpread, 'value').min(0.1).max(1).step(0.02).name('uWakeSpread')
+        folder.add(uniforms.uWakeLength, 'value').min(2).max(20).step(0.5).name('uWakeLength')
+        folder.add(uniforms.uWakeLineWidth, 'value').min(0.05).max(1).step(0.01).name('uWakeLineWidth')
+        folder.add(uniforms.uWakeTrailRadius, 'value').min(0.2).max(2).step(0.05).name('uWakeTrailRadius')
+        folder.add(uniforms.uWakeTrailLife, 'value').min(0.4).max(4).step(0.1).name('uWakeTrailLife')
+        folder.add(this, 'wakeDropInterval').min(0.05).max(0.5).step(0.01)
+        folder.add(this, 'wakeMinSpeed').min(0).max(5).step(0.1)
+        folder.add(this, 'wakeFullSpeed').min(1).max(10).step(0.1)
         folder.addColor(uniforms.uFoamColor, 'value').name('uFoamColor')
         folder.addColor(uniforms.uDeepColor, 'value').name('uDeepColor')
         folder.addColor(uniforms.uShallowColor, 'value').name('uShallowColor')
@@ -221,6 +237,54 @@ export default class Water
         this.playerRipple += (rippleTarget - this.playerRipple) * Math.min(1, rippleRate * this.state.time.delta)
         uniforms.uPlayerRipple.value = this.playerRipple
         uniforms.uPlayerRipplePosition.value.set(playerState.position.current[0], playerState.position.current[2])
+
+        // Directional wake: smoothed heading, speed-gated strength, trail
+        // ring buffer of dropped churn points aged out in-shader
+        const vx = playerState.velocity[0]
+        const vz = playerState.velocity[2]
+        const planarSpeed = Math.hypot(vx, vz)
+
+        if(planarSpeed > 0.5)
+        {
+            const headingRatio = 1 - Math.exp(- 8 * this.state.time.delta)
+            this.wakeHeading.x += (vx / planarSpeed - this.wakeHeading.x) * headingRatio
+            this.wakeHeading.y += (vz / planarSpeed - this.wakeHeading.y) * headingRatio
+
+            if(this.wakeHeading.lengthSq() > 0.0001)
+                this.wakeHeading.normalize()
+        }
+
+        const wakeTarget = playerState.swimming
+            ? Math.min(1, Math.max(0, (planarSpeed - this.wakeMinSpeed) / (this.wakeFullSpeed - this.wakeMinSpeed)))
+            : 0
+        const wakeRate = wakeTarget > this.wakeStrength ? 6 : 3
+        this.wakeStrength += (wakeTarget - this.wakeStrength) * Math.min(1, wakeRate * this.state.time.delta)
+        uniforms.uWakeStrength.value = this.wakeStrength
+        uniforms.uWakeHeading.value.copy(this.wakeHeading)
+
+        if(playerState.swimming && planarSpeed > this.wakeMinSpeed)
+        {
+            this.wakeDropTimer += this.state.time.delta
+
+            if(this.wakeDropTimer >= this.wakeDropInterval)
+            {
+                this.wakeDropTimer -= this.wakeDropInterval
+
+                // Drop slightly behind the wisp so churn rings don't overlap
+                // the hugging contact ring
+                uniforms.uWakeTrail.value[this.wakeTrailIndex].set(
+                    playerState.position.current[0] - this.wakeHeading.x * 0.5,
+                    playerState.position.current[2] - this.wakeHeading.y * 0.5,
+                    this.state.time.elapsed,
+                    this.wakeStrength
+                )
+                this.wakeTrailIndex = (this.wakeTrailIndex + 1) % 12
+            }
+        }
+        else
+        {
+            this.wakeDropTimer = 0
+        }
 
         uniforms.uWaveD0.value = waveSets.D0
         uniforms.uWaveWidth.value = waveSets.width

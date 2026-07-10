@@ -19,16 +19,20 @@ export default class ProgressiveBounceCourses
         this.enabled = true
         this.minSpeed = 10
         this.minForwardRatio = 0.58
-        this.minStableDot = 0.96
-        this.triggerTime = 3.6
-        this.cooldown = 24
-        this.cooldownTimer = 2
+        this.minStableDot = 0.94
+        this.triggerTime = 2.4
+        this.cooldown = 12
+        this.cooldownTimer = 0.5
         this.blockedCourseCooldown = 7
 
         this.padCountMin = 8
         this.padCountMax = 14
         this.startDistance = 42
         this.fastStartDistanceBonus = 10
+        this.minForwardGap = 5.4
+        this.maxForwardGap = 23
+        this.closeForwardGap = 5.8
+        this.longForwardGapBonus = 6
         this.forwardGap = 12
         this.fastForwardGapBonus = 6.5
         this.forwardGapJitter = 5
@@ -38,6 +42,12 @@ export default class ProgressiveBounceCourses
         this.firstPadHeight = 1.1
         this.heightBase = 4.2
         this.verticalStep = 2.35
+        this.minHeightOffset = 1.1
+        this.maxHeightOffset = 11
+        this.highHopClimbMin = 2.2
+        this.highHopClimbMax = 4
+        this.dropHopMin = 1.4
+        this.dropHopMax = 3.2
         this.padTerrainClearance = 1.7
         this.sidePadTerrainClearance = 2.8
         this.visibleAhead = 3
@@ -51,6 +61,8 @@ export default class ProgressiveBounceCourses
         this.fastForwardLaunchBonus = 1.4
         this.horizontalLaunchSpeed = 18.5
         this.fastHorizontalLaunchBonus = 4
+        this.launchPerHeight = 0.5
+        this.launchVelocityMax = 22
         this.speedSpreadMax = 34
         this.padCooldown = 0.32
         this.missDistance = 12
@@ -58,7 +70,7 @@ export default class ProgressiveBounceCourses
         this.restartBacktrackDistance = 8
         this.fallGrace = 0.35
         this.expireDelay = 1.4
-        this.failedAbandonDistance = 110
+        this.failedAbandonDistance = 70
         this.towerAvoidRadius = 16
         this.prizeHeight = 4
         this.prizeRadius = 2.5
@@ -73,6 +85,8 @@ export default class ProgressiveBounceCourses
         this.nextCourseId = 1
         this.streak = 0
         this.previousPlayerY = null
+        this.lastCollisionDebugTime = - 999
+        this.collisionDebugInterval = 0.25
 
         this.setDebug()
     }
@@ -147,6 +161,122 @@ export default class ProgressiveBounceCourses
         return false
     }
 
+    clamp(value, min, max)
+    {
+        return Math.max(min, Math.min(max, value))
+    }
+
+    chooseSegmentType(index, previousSegmentType)
+    {
+        if(index === 1)
+            return 'side'
+
+        const needsRecovery = previousSegmentType === 'side'
+            || previousSegmentType === 'long'
+            || previousSegmentType === 'high'
+
+        if(needsRecovery && Math.random() < 0.38)
+            return 'close'
+
+        const roll = Math.random()
+
+        if(roll < 0.2)
+            return 'side'
+
+        if(roll < 0.37)
+            return 'close'
+
+        if(roll < 0.53)
+            return 'high'
+
+        if(roll < 0.66)
+            return 'drop'
+
+        if(roll < 0.8)
+            return 'long'
+
+        return 'normal'
+    }
+
+    getSideDirection(lateral, courseLateralGap, courseMaxLateral, previousSide)
+    {
+        let direction = Math.random() < 0.62 ? - previousSide : previousSide
+
+        if(Math.abs(lateral + direction * courseLateralGap) > courseMaxLateral)
+            direction *= - 1
+
+        return direction
+    }
+
+    getSegmentPlan(segmentType, progress, speedSpread, courseForwardGap, courseLateralGap, courseMaxLateral, lateral, previousSide)
+    {
+        let forwardGap = courseForwardGap + (Math.random() - 0.5) * this.forwardGapJitter
+        let heightDelta = (Math.random() - 0.42) * this.verticalStep + Math.sin(progress * Math.PI * 3) * 0.8
+        let sideStep = 0
+        let nextPreviousSide = previousSide
+        let widePad = false
+        let terrainClearance = this.padTerrainClearance
+
+        if(segmentType === 'close')
+        {
+            forwardGap = this.closeForwardGap + Math.random() * 1.8 + speedSpread * 1.2
+            heightDelta = (Math.random() - 0.5) * 0.9
+            widePad = true
+        }
+        else if(segmentType === 'long')
+        {
+            forwardGap = courseForwardGap + this.longForwardGapBonus + Math.random() * 4
+            heightDelta += - 0.6 + Math.random() * 1.2
+        }
+        else if(segmentType === 'high')
+        {
+            forwardGap = courseForwardGap * 0.75 + Math.random() * 2.5
+            heightDelta = this.highHopClimbMin + Math.random() * (this.highHopClimbMax - this.highHopClimbMin)
+            widePad = true
+            terrainClearance = this.sidePadTerrainClearance
+        }
+        else if(segmentType === 'drop')
+        {
+            forwardGap = courseForwardGap + Math.random() * 5
+            heightDelta = - (this.dropHopMin + Math.random() * (this.dropHopMax - this.dropHopMin))
+        }
+        else if(segmentType === 'side')
+        {
+            forwardGap = courseForwardGap * (0.82 + Math.random() * 0.22)
+            heightDelta += (Math.random() - 0.5) * 1.4
+        }
+
+        const shouldSideHop = segmentType === 'side'
+            || (segmentType === 'high' && Math.random() < this.angledPadChance * 0.45)
+            || (segmentType === 'drop' && Math.random() < this.angledPadChance * 0.35)
+            || (segmentType === 'long' && Math.random() < this.angledPadChance * 0.3)
+            || (segmentType === 'normal' && Math.random() < this.angledPadChance * 0.45)
+
+        if(shouldSideHop)
+        {
+            const direction = this.getSideDirection(lateral, courseLateralGap, courseMaxLateral, previousSide)
+            const sideScale = segmentType === 'side'
+                ? 0.86 + progress * 0.45
+                : segmentType === 'close'
+                    ? 0.45
+                    : 0.5 + progress * 0.25
+
+            sideStep = direction * courseLateralGap * sideScale
+            nextPreviousSide = direction
+            terrainClearance = Math.max(terrainClearance, this.sidePadTerrainClearance)
+        }
+
+        return {
+            segmentType,
+            forwardGap: this.clamp(forwardGap, this.minForwardGap, this.maxForwardGap + speedSpread * 4),
+            heightDelta,
+            sideStep,
+            previousSide: nextPreviousSide,
+            widePad,
+            terrainClearance
+        }
+    }
+
     createCourse(player)
     {
         if(this.state.obstacleCourses?.course)
@@ -174,38 +304,36 @@ export default class ProgressiveBounceCourses
         let lateral = 0
         let heightOffset = this.firstPadHeight
         let previousSide = Math.random() < 0.5 ? - 1 : 1
+        let previousSegmentType = 'start'
 
         for(let i = 0; i < padCount; i++)
         {
-            let currentSideStep = 0
+            let segmentType = 'start'
+            let terrainClearance = this.padTerrainClearance
+            let widePad = false
 
             if(i > 0)
             {
-                distance += courseForwardGap + (Math.random() - 0.5) * this.forwardGapJitter
-
                 const progress = i / Math.max(1, padCount - 1)
-                let sideStep = 0
-                const forceAngled = i % 3 === 1
+                segmentType = this.chooseSegmentType(i, previousSegmentType)
+                const segmentPlan = this.getSegmentPlan(
+                    segmentType,
+                    progress,
+                    speedSpread,
+                    courseForwardGap,
+                    courseLateralGap,
+                    courseMaxLateral,
+                    lateral,
+                    previousSide
+                )
 
-                if(forceAngled || Math.random() < this.angledPadChance)
-                {
-                    let direction = Math.random() < 0.62 ? - previousSide : previousSide
-
-                    if(Math.abs(lateral + direction * courseLateralGap) > courseMaxLateral)
-                        direction *= - 1
-
-                    sideStep = direction * courseLateralGap * (0.82 + progress * 0.42)
-                    lateral += sideStep
-                    previousSide = direction
-                    currentSideStep = sideStep
-                }
-                else
-                {
-                    lateral *= 0.82
-                }
-
-                const climb = (Math.random() - 0.42) * this.verticalStep + Math.sin(i * 0.95) * 0.8
-                heightOffset = Math.max(this.firstPadHeight + 0.2, Math.min(this.heightBase + progress * 6.5, heightOffset + climb))
+                distance += segmentPlan.forwardGap
+                lateral += segmentPlan.sideStep
+                previousSide = segmentPlan.previousSide
+                terrainClearance = segmentPlan.terrainClearance
+                widePad = segmentPlan.widePad
+                heightOffset = this.clamp(heightOffset + segmentPlan.heightDelta, this.minHeightOffset, this.maxHeightOffset)
+                previousSegmentType = segmentType
             }
 
             const z = originZ + directionZ * distance + sideZ * lateral
@@ -215,7 +343,9 @@ export default class ProgressiveBounceCourses
             if(elevation === false || !Number.isFinite(elevation))
                 return false
 
-            const radius = i > 2 && Math.random() < 0.3 + Math.min(this.streak, 4) * 0.05
+            const radius = widePad
+                ? this.padRadius
+                : i > 2 && Math.random() < 0.3 + Math.min(this.streak, 4) * 0.05
                 ? this.narrowPadRadius
                 : this.padRadius
 
@@ -233,6 +363,7 @@ export default class ProgressiveBounceCourses
                 groundY: elevation,
                 distance,
                 radius,
+                segmentType,
                 tiltDirection: 0,
                 tiltAngle: 0,
                 launchVelocity: this.launchVelocity + Math.min(i, 8) * 0.18,
@@ -246,10 +377,6 @@ export default class ProgressiveBounceCourses
             })
 
             const pad = pads[pads.length - 1]
-            const terrainClearance = Math.abs(currentSideStep) > 1.2
-                ? this.sidePadTerrainClearance
-                : this.padTerrainClearance
-
             pad.position[1] = Math.max(pad.position[1], elevation + terrainClearance)
         }
 
@@ -271,6 +398,10 @@ export default class ProgressiveBounceCourses
                 pad.tiltAngle = tiltDirection === 0 ? 0 : this.tiltAngle
                 pad.horizontalVelocity[0] = directionX * courseForwardLaunchSpeed + sideX * tiltDirection * courseSideLaunchSpeed
                 pad.horizontalVelocity[2] = directionZ * courseForwardLaunchSpeed + sideZ * tiltDirection * courseSideLaunchSpeed
+                pad.launchVelocity = Math.min(
+                    this.launchVelocityMax,
+                    pad.launchVelocity + Math.max(0, nextPad.position[1] - pad.position[1]) * this.launchPerHeight
+                )
             }
         }
 
@@ -286,6 +417,7 @@ export default class ProgressiveBounceCourses
             createdAt: this.time.elapsed,
             completedAt: 0,
             failed: false,
+            failedDistance: 0,
             started: false,
             revealedUntil: 0,
             streakLevel: this.streak,
@@ -330,6 +462,7 @@ export default class ProgressiveBounceCourses
     {
         course.completedAt = 0
         course.failed = false
+        course.failedDistance = 0
         course.started = false
         course.revealedUntil = 0
         course.lastBounceTime = - 999
@@ -357,6 +490,13 @@ export default class ProgressiveBounceCourses
         return this.course.pads.find(pad => !this.isPadResolved(pad)) ?? false
     }
 
+    getCollisionRevealLimit(course = this.course)
+    {
+        // The faint preview pad should still be physical. If it is visible and
+        // the player reaches it, the course should advance instead of feeling dead.
+        return Math.min(course.pads.length - 1, course.revealedUntil + 1)
+    }
+
     revealThrough(index)
     {
         if(!this.course)
@@ -369,6 +509,16 @@ export default class ProgressiveBounceCourses
         {
             if(pad.index <= this.course.revealedUntil && pad.revealTime === 0)
                 pad.revealTime = this.time.elapsed
+        }
+
+        if(this.debug.visible)
+        {
+            console.log('[progressiveBounceCourses] reveal', {
+                courseId: this.course.id,
+                previous,
+                next: this.course.revealedUntil,
+                visibleAhead: this.visibleAhead
+            })
         }
     }
 
@@ -417,6 +567,15 @@ export default class ProgressiveBounceCourses
     {
         const perfect = this.state.controls.keys.down.jump
         const verticalVelocity = pad.launchVelocity * (perfect ? this.perfectBonusRatio : 1)
+        const previousReveal = this.course.revealedUntil
+
+        // Pad contact is authoritative. If the player lands on a retry pad,
+        // clear any stale failed/completed state before revealing the chain.
+        this.course.completedAt = 0
+        this.course.failed = false
+        this.course.failedDistance = 0
+        this.course.prize.collected = false
+        this.course.prize.collectTime = 0
 
         this.skipPadsBefore(pad.index)
 
@@ -430,6 +589,21 @@ export default class ProgressiveBounceCourses
         this.course.started = true
         this.course.lastBounceTime = this.time.elapsed
         this.revealThrough(pad.index + this.visibleAhead)
+
+        if(this.debug.visible)
+        {
+            console.log('[progressiveBounceCourses] pad bounce counted', {
+                courseId: this.course.id,
+                padIndex: pad.index,
+                previousReveal,
+                revealedUntil: this.course.revealedUntil,
+                collisionLimit: this.getCollisionRevealLimit(this.course),
+                perfect,
+                playerY: player.position.current[1],
+                padY: pad.position[1],
+                velocityY: player.velocity[1]
+            })
+        }
 
         this.events.emit('padBounce', {
             course: this.course,
@@ -458,7 +632,7 @@ export default class ProgressiveBounceCourses
         this.completeCourse(true)
     }
 
-    completeCourse(perfect)
+    completeCourse(perfect, playerDistance = 0)
     {
         if(!this.course || this.course.completedAt > 0)
             return
@@ -467,6 +641,7 @@ export default class ProgressiveBounceCourses
         const skipped = this.course.pads.filter(pad => pad.skipped).length
         this.course.completedAt = this.time.elapsed
         this.course.failed = !perfect
+        this.course.failedDistance = perfect ? 0 : playerDistance
         this.streak = perfect && skipped === 0 && bounced === this.course.pads.length ? this.streak + 1 : 0
 
         this.events.emit('courseComplete', {
@@ -479,18 +654,118 @@ export default class ProgressiveBounceCourses
         })
     }
 
+    debugCollisionMiss(course, player, playerDistance)
+    {
+        if(!this.debug.visible || this.time.elapsed - this.lastCollisionDebugTime < this.collisionDebugInterval)
+            return
+
+        const playerX = player.position.current[0]
+        const playerY = player.position.current[1]
+        const playerZ = player.position.current[2]
+        const collisionLimit = this.getCollisionRevealLimit(course)
+        let best = null
+
+        for(const pad of course.pads)
+        {
+            const restartPad = course.failed && pad.index === 0
+            const inspectable = restartPad || pad.index <= collisionLimit
+
+            if(!inspectable)
+                continue
+
+            const horizontalDistance = Math.hypot(playerX - pad.position[0], playerZ - pad.position[2])
+            const yGap = playerY - pad.position[1]
+            const score = Math.max(0, horizontalDistance - pad.radius) + Math.max(0, Math.abs(yGap) - 4) * 0.35
+
+            if(!best || score < best.score)
+                best = { pad, restartPad, horizontalDistance, yGap, score }
+        }
+
+        if(!best)
+            return
+
+        const { pad, restartPad, horizontalDistance, yGap } = best
+
+        if(horizontalDistance > pad.radius + 3 && Math.abs(yGap) > 7)
+            return
+
+        const reasons = []
+
+        if(!restartPad && this.isPadResolved(pad))
+            reasons.push(pad.bounced ? 'already bounced' : 'skipped')
+
+        if(!restartPad && pad.index > collisionLimit)
+            reasons.push('not collision-active')
+
+        if(player.velocity[1] >= 0)
+            reasons.push('not falling')
+
+        if(this.previousPlayerY === null)
+            reasons.push('missing previous Y')
+        else
+        {
+            if(this.previousPlayerY < pad.position[1])
+                reasons.push('previous Y below pad plane')
+
+            if(playerY >= pad.position[1])
+                reasons.push('current Y above pad plane')
+        }
+
+        if(horizontalDistance > pad.radius)
+            reasons.push('outside radius')
+
+        if(this.time.elapsed - pad.lastBounceTime < this.padCooldown)
+            reasons.push('pad cooldown')
+
+        this.lastCollisionDebugTime = this.time.elapsed
+        console.log('[progressiveBounceCourses] collision not counted', {
+            courseId: course.id,
+            padIndex: pad.index,
+            reasons: reasons.length ? reasons : [ 'near pad, waiting for plane crossing' ],
+            revealedUntil: course.revealedUntil,
+            collisionLimit,
+            completedAt: course.completedAt,
+            failed: course.failed,
+            started: course.started,
+            bounced: pad.bounced,
+            skipped: pad.skipped,
+            horizontalDistance: Number(horizontalDistance.toFixed(2)),
+            radius: pad.radius,
+            previousY: this.previousPlayerY === null ? null : Number(this.previousPlayerY.toFixed(2)),
+            playerY: Number(playerY.toFixed(2)),
+            padY: Number(pad.position[1].toFixed(2)),
+            yGap: Number(yGap.toFixed(2)),
+            velocityY: Number(player.velocity[1].toFixed(2)),
+            playerDistance: Number(playerDistance.toFixed(2)),
+            padDistance: Number(pad.distance.toFixed(2))
+        })
+    }
+
     updateCourse(player)
     {
         const course = this.course
         const playerX = player.position.current[0]
         const playerY = player.position.current[1]
         const playerZ = player.position.current[2]
+        const toPlayerX = playerX - course.origin[0]
+        const toPlayerZ = playerZ - course.origin[2]
+        const playerDistance = toPlayerX * course.direction[0] + toPlayerZ * course.direction[2]
+        let countedBounce = false
+
+        // Retry/reset must happen before collision checks. Otherwise a failed
+        // course can test the first pad while it is still marked bounced/skipped.
+        if(this.canRestartAtBeginning(course, playerDistance, playerX, playerZ))
+            this.restartAtBeginning(course)
 
         if(player.velocity[1] < 0 && this.previousPlayerY !== null)
         {
+            const collisionLimit = this.getCollisionRevealLimit(course)
+
             for(const pad of course.pads)
             {
-                if(this.isPadResolved(pad) || pad.index > course.revealedUntil)
+                const restartPad = course.failed && pad.index === 0
+
+                if(!restartPad && (this.isPadResolved(pad) || pad.index > collisionLimit))
                     continue
 
                 if(this.time.elapsed - pad.lastBounceTime < this.padCooldown)
@@ -502,19 +777,22 @@ export default class ProgressiveBounceCourses
                 if(Math.hypot(playerX - pad.position[0], playerZ - pad.position[2]) > pad.radius)
                     continue
 
-                this.bouncePad(pad, player)
+                if(restartPad)
+                    this.restartAtBeginning(course)
+
+                this.bouncePad(course.pads[pad.index], player)
+                countedBounce = true
                 break
             }
         }
 
+        if(!countedBounce)
+            this.debugCollisionMiss(course, player, playerDistance)
+
         const prize = course.prize
 
-        const toPlayerX = playerX - course.origin[0]
-        const toPlayerZ = playerZ - course.origin[2]
-        const playerDistance = toPlayerX * course.direction[0] + toPlayerZ * course.direction[2]
-
-        if(this.canRestartAtBeginning(course, playerDistance, playerX, playerZ))
-            this.restartAtBeginning(course)
+        if(course.completedAt === 0 && !course.started && playerDistance > course.pads[0].distance + this.missDistance)
+            this.completeCourse(false, playerDistance)
 
         this.skipPassedPads(playerDistance)
 
@@ -538,11 +816,15 @@ export default class ProgressiveBounceCourses
                 && this.time.elapsed - course.lastBounceTime > this.fallGrace
 
             if((nextPad || this.arePadsResolved(course)) && (landedAfterStart || player.swimming))
-                this.completeCourse(false)
+                this.completeCourse(false, playerDistance)
         }
 
-        if(course.failed && playerDistance > course.pads[course.pads.length - 1].distance + this.failedAbandonDistance)
+        if(course.failed && playerDistance > course.failedDistance + this.failedAbandonDistance)
+        {
             this.course = null
+            this.cooldownTimer = Math.min(this.cooldownTimer, 1.5)
+            this.straightTimer = 0
+        }
         else if(course.completedAt > 0 && !course.failed && this.time.elapsed - course.completedAt > this.expireDelay)
             this.course = null
     }
@@ -598,10 +880,15 @@ export default class ProgressiveBounceCourses
         folder.add(this, 'forwardLaunchSpeed').min(2).max(22).step(0.1)
         folder.add(this, 'horizontalLaunchSpeed').min(6).max(36).step(0.1)
         folder.add(this, 'angledPadChance').min(0).max(1).step(0.01)
+        folder.add(this, 'minForwardGap').min(3).max(12).step(0.25)
+        folder.add(this, 'maxForwardGap').min(12).max(32).step(0.5)
+        folder.add(this, 'closeForwardGap').min(3).max(12).step(0.25)
         folder.add(this, 'forwardGap').min(5).max(18).step(0.5)
         folder.add(this, 'fastForwardGapBonus').min(0).max(10).step(0.5)
         folder.add(this, 'lateralGap').min(2).max(12).step(0.25)
         folder.add(this, 'fastLateralGapBonus').min(0).max(6).step(0.25)
+        folder.add(this, 'minHeightOffset').min(0.5).max(4).step(0.1)
+        folder.add(this, 'maxHeightOffset').min(5).max(16).step(0.25)
         folder.add(this, 'padRadius').min(1).max(5).step(0.1)
         folder.add(this, 'restartRadius').min(2).max(30).step(0.5)
         folder.add(this, 'failedAbandonDistance').min(20).max(250).step(5)

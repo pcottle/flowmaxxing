@@ -28,6 +28,8 @@ export default class Audio
         this.crashVolume = 0.3
         this.rainVolume = 0.12
         this.thunderVolume = 0.4
+        this.fireVolume = 0.15
+        this.nextCrackleTime = 0
 
         // Two-octave A pentatonic scales: minor at night, major by day
         this.scales = {}
@@ -79,6 +81,7 @@ export default class Audio
         this.setSus()
         this.setSurf()
         this.setRain()
+        this.setFire()
 
         this.state.weather.events.on('thunder', () =>
         {
@@ -559,6 +562,57 @@ export default class Audio
         this.rain.source.start()
     }
 
+    setFire()
+    {
+        // Campfire bed: warm low rumble, decorrelated from wind/surf by rate.
+        // Gain follows proximity to the nearest live fire (View/Campfires.js)
+        this.fire = {}
+        this.fire.source = this.context.createBufferSource()
+        this.fire.source.buffer = this.getNoiseBuffer()
+        this.fire.source.loop = true
+        this.fire.source.playbackRate.value = 0.9
+
+        this.fire.filter = this.context.createBiquadFilter()
+        this.fire.filter.type = 'lowpass'
+        this.fire.filter.frequency.value = 1000
+        this.fire.filter.Q.value = 0.8
+
+        this.fire.gain = this.context.createGain()
+        this.fire.gain.gain.value = 0
+
+        this.fire.source.connect(this.fire.filter)
+        this.fire.filter.connect(this.fire.gain)
+        this.fire.gain.connect(this.masterGain)
+        this.fire.source.start()
+    }
+
+    playCracklePop(amount)
+    {
+        // A single dry snap: short noise burst through a randomized bandpass —
+        // close and dry on purpose, so it skips the reverb bus
+        const now = this.context.currentTime
+
+        const source = this.context.createBufferSource()
+        source.buffer = this.getNoiseBuffer()
+        source.playbackRate.value = 1 + Math.random() * 0.6
+
+        const filter = this.context.createBiquadFilter()
+        filter.type = 'bandpass'
+        filter.frequency.value = 1600 + Math.random() * 1800
+        filter.Q.value = 2
+
+        const gain = this.context.createGain()
+        gain.gain.setValueAtTime(0, now)
+        gain.gain.linearRampToValueAtTime(this.fireVolume * amount * (0.5 + Math.random() * 0.5), now + 0.003)
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05 + Math.random() * 0.08)
+
+        source.connect(filter)
+        filter.connect(gain)
+        gain.connect(this.masterGain)
+        source.start(now)
+        source.stop(now + 0.2)
+    }
+
     rememberNote(frequency)
     {
         this.melodyBuffer.push(frequency)
@@ -846,6 +900,27 @@ export default class Audio
         // Rain hiss follows the weather intensity
         this.rain.gain.gain.setTargetAtTime(this.rainVolume * this.state.weather.rainIntensity, now, 0.5)
 
+        // Campfire crackle: bed + irregular pops near a live night fire
+        const campfires = this.view.campfires
+
+        if(campfires && this.fire)
+        {
+            const proximity = Math.max(0, 1 - campfires.nearestDistance / 25)
+            const fireAmount = proximity * proximity * campfires.presence
+
+            this.fire.gain.gain.setTargetAtTime(this.fireVolume * fireAmount * 0.5, now, 0.3)
+
+            if(fireAmount > 0.02 && this.time.elapsed > this.nextCrackleTime)
+            {
+                this.nextCrackleTime = this.time.elapsed + 0.09 + Math.random() * (0.5 - fireAmount * 0.35)
+                this.playCracklePop(fireAmount)
+
+                // The occasional double-snap
+                if(Math.random() < 0.17)
+                    setTimeout(() => { if(this.ready) this.playCracklePop(fireAmount * 0.5) }, 40)
+            }
+        }
+
         // Crossfade pad voicings with the day cycle
         const dayness = Math.min(Math.max(sunState.position.y * 4 + 0.5, 0), 1)
         this.pad.day.gain.gain.setTargetAtTime(dayness, now, 2)
@@ -981,6 +1056,7 @@ export default class Audio
         folder.add(this, 'crashVolume').min(0).max(0.8).step(0.01)
         folder.add(this, 'rainVolume').min(0).max(0.5).step(0.01)
         folder.add(this, 'thunderVolume').min(0).max(1).step(0.01)
+        folder.add(this, 'fireVolume').min(0).max(0.5).step(0.01)
         folder.add(this, 'reverbVolume').min(0).max(1).step(0.01).onChange(() =>
         {
             if(this.ready)

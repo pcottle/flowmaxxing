@@ -1,6 +1,7 @@
 import Audio from './Audio.js'
 import BouncePads from './BouncePads.js'
 import Camera from './Camera.js'
+import Campfires from './Campfires.js'
 import Chunks from './Chunks.js'
 import Crabs from './Crabs.js'
 import Cyclones from './Cyclones.js'
@@ -13,6 +14,7 @@ import Noises from './Noises.js'
 import ObstacleCourses from './ObstacleCourses.js'
 import Particles from './Particles.js'
 import Player from './Player.js'
+import PlayerShadow from './PlayerShadow.js'
 import ProgressiveBounceCourses from './ProgressiveBounceCourses.js'
 import Props from './Props.js'
 import Rain from './Rain.js'
@@ -21,6 +23,8 @@ import Renderer from './Renderer.js'
 import Ribbon from './Ribbon.js'
 import Seagulls from './Seagulls.js'
 import Sky from './Sky.js'
+import Sparkles from './Sparkles.js'
+import SunShafts from './SunShafts.js'
 import Terrains from './Terrains.js'
 import Water from './Water.js'
 
@@ -58,6 +62,7 @@ export default class View
         this.props = new Props()
         this.obstacleCourses = new ObstacleCourses()
         this.bouncePads = new BouncePads()
+        this.playerShadow = new PlayerShadow()
         this.progressiveBounceCourses = new ProgressiveBounceCourses()
         this.cyclones = new Cyclones()
         this.particles = new Particles()
@@ -68,6 +73,9 @@ export default class View
         this.footprints = new Footprints()
         this.crabs = new Crabs()
         this.fireflies = new Fireflies()
+        this.campfires = new Campfires()
+        this.sparkles = new Sparkles()
+        this.sunShafts = new SunShafts()
         this.audio = new Audio()
     }
 
@@ -80,6 +88,9 @@ export default class View
         this.particles.resize()
         this.rain.resize()
         this.fireflies.resize()
+        this.campfires.resize()
+        this.sparkles.resize()
+        this.sunShafts.resize()
     }
 
     update()
@@ -96,6 +107,7 @@ export default class View
         this.props.update()
         this.obstacleCourses.update()
         this.bouncePads.update()
+        this.playerShadow.update()
         this.progressiveBounceCourses.update()
         this.cyclones.update()
         this.particles.update()
@@ -106,6 +118,9 @@ export default class View
         this.footprints.update()
         this.crabs.update()
         this.fireflies.update()
+        this.campfires.update()
+        this.sparkles.update()
+        this.sunShafts.update()
         this.audio.update()
         this.renderer.update()
     }

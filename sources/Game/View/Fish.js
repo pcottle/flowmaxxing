@@ -18,16 +18,18 @@ export default class Fish
         this.scene = this.view.scene
 
         this.capacity = 10
-        this.intervalMin = 4
-        this.intervalMax = 11
+        this.intervalMin = 3
+        this.intervalMax = 7
         this.schoolMax = 3
-        this.offshoreMin = 22
-        this.offshoreMax = 85
+        // Close enough to the surf line to actually read from the beach —
+        // at the old 22-85m a 0.45m dart was an invisible speck
+        this.offshoreMin = 8
+        this.offshoreMax = 30
         this.windowZ = 90
         this.gravity = 14
-        this.peakMin = 1.1
-        this.peakMax = 3
-        this.fishScale = 1
+        this.peakMin = 1.5
+        this.peakMax = 3.5
+        this.fishScale = 1.8
         this.splashVolume = 0.35
 
         this.spawnTimer = 3

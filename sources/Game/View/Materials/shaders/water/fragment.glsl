@@ -23,6 +23,17 @@ uniform float uWaveFoamWidth1;
 uniform float uWaveFoamIntensity0;
 uniform float uWaveFoamIntensity1;
 
+#define WAKE_TRAIL_COUNT 12
+uniform float uWakeStrength;
+uniform vec2 uWakeHeading;
+uniform vec4 uWakeTrail[WAKE_TRAIL_COUNT];
+uniform float uWakeSpread;
+uniform float uWakeLength;
+uniform float uWakeLineWidth;
+uniform float uWakeTrailRadius;
+uniform float uWakeTrailLife;
+uniform float uWakeMaxDistance;
+
 varying vec3 vWorldPosition;
 varying float vShoreDistance;
 varying vec4 vClipPosition;
@@ -88,9 +99,50 @@ void main()
     float playerDistance = distance(vWorldPosition.xz, uPlayerRipplePosition);
     float ripplePhase = fract(playerDistance * 0.7 - uTime * 0.9);
     float rippleFade = 1.0 - smoothstep(uRippleRadius * 0.5, uRippleRadius, playerDistance);
-    float playerRipple = step(0.82, ripplePhase) * rippleFade;
+    float playerRipple = step(0.82, ripplePhase) * rippleFade * (1.0 - uWakeStrength * 0.75);
     playerRipple = max(playerRipple, step(abs(playerDistance - 0.55 - sin(uTime * 2.0) * 0.08), 0.09));
     foam = max(foam, playerRipple * uPlayerRipple);
+
+    // Directional swim wake: crisp V prow lines from the smoothed heading plus
+    // churned dash rings dropped along the travel history — flat white, folded
+    // into the same foam max chain. Dash patterns are static hashes keyed per
+    // arm cell / per drop generation; animation only translates or expands lines
+    float wakeFoam = 0.0;
+
+    if(uWakeStrength > 0.001 && playerDistance < uWakeMaxDistance)
+    {
+        vec2 back = - uWakeHeading;
+        vec2 side = vec2(- uWakeHeading.y, uWakeHeading.x);
+        vec2 toFrag = vWorldPosition.xz - uPlayerRipplePosition;
+        float along = dot(toFrag, back);
+        float across = dot(toFrag, side);
+
+        // Analytic V: two angled dash lines, coverage tapering toward the tail
+        float onArm = step(abs(abs(across) - along * uWakeSpread), uWakeLineWidth)
+                    * step(0.3, along) * step(along, uWakeLength);
+        float armCell = floor(along / 1.1) + step(0.0, across) * 41.0;
+        float armHash = fract(sin(armCell * 127.1) * 43758.5453);
+        float armCoverage = 1.0 - smoothstep(uWakeLength * 0.3, uWakeLength, along) * 0.85;
+        wakeFoam = onArm * step(armHash, armCoverage) * uWakeStrength;
+
+        // Trail history: each dropped point runs a slowly expanding dashed ring
+        // whose dashes wink out with age (stochastic dropout, not alpha fade)
+        for(int i = 0; i < WAKE_TRAIL_COUNT; i++)
+        {
+            vec4 tp = uWakeTrail[i];
+            float age = uTime - tp.z;
+            float alive = tp.w * step(0.0, age) * step(age, uWakeTrailLife);
+            float td = distance(vWorldPosition.xz, tp.xy);
+            float radius = uWakeTrailRadius * (1.0 + age * 0.6);
+            float onRing = step(abs(td - radius), uWakeLineWidth);
+            float angleCell = floor((atan(vWorldPosition.z - tp.y, vWorldPosition.x - tp.x) / 6.2831 + 0.5) * 8.0);
+            float ringHash = fract(sin(angleCell * 269.5 + tp.z * 17.0 + float(i) * 61.0) * 43758.5453);
+            float ringCoverage = 1.0 - age / uWakeTrailLife;
+            wakeFoam = max(wakeFoam, onRing * step(ringHash, ringCoverage) * alive);
+        }
+    }
+
+    foam = max(foam, wakeFoam);
 
     // Rain splash rings: hashed grid cells each run a short expanding ring,
     // more cells joining in as the rain builds

@@ -257,16 +257,15 @@ export default class ProgressiveBounceCourses
         const isNext = pad === nextPad
         const squashAge = this.time.elapsed - pad.lastBounceTime
         const squash = squashAge < this.squashDuration ? squashAge / this.squashDuration : 1
-        const revealFade = pad.revealTime > 0 ? THREE.MathUtils.smoothstep(this.time.elapsed - pad.revealTime, 0, 0.7) : 0
         let opacity = 0
 
         if(revealed)
-            opacity = (isNext ? 0.9 : 0.55) * revealFade
+            opacity = isNext ? 0.95 : pad.bounced || pad.skipped ? 0.55 : 0.78
         else if(preview)
             opacity = 0.13 + Math.sin(this.time.elapsed * 4) * 0.03
 
         if(pad.bounced)
-            opacity *= Math.max(0.22, 1 - (this.time.elapsed - pad.bounceTime) / 0.8)
+            opacity = Math.max(0.42, opacity * Math.max(0.7, 1 - (this.time.elapsed - pad.bounceTime) / 0.9))
         else if(pad.skipped)
             opacity *= Math.max(0, 1 - (this.time.elapsed - pad.skipTime) / 0.5)
 

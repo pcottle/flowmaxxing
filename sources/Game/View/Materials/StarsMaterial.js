@@ -11,7 +11,9 @@ export default function StarsMaterial()
             uSunPosition: { value: new THREE.Vector3() },
             uSize: { value: 0.01 },
             uBrightness: { value: 0.5 },
-            uHeightFragments: { value: null }
+            uHeightFragments: { value: null },
+            uTime: { value: 0 },
+            uTwinkleAmount: { value: 0.25 }
         },
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
