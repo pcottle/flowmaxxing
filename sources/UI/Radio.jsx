@@ -9,10 +9,9 @@ import './Radio.css'
 // freq is optional — omit it and the station gets a famous dial position
 // (each handed out once), then random FM frequencies once those run out.
 const RAW_STATIONS = [
+    { id: 'NFa7KlLyzGY' },
     { id: 'NDQ3eafSKXo' },
     { id: '8CdPZ6VQucg' },
-    { id: 'S4id5sFAma4' },
-    { id: 'NFa7KlLyzGY' },
     { id: 'wyFIiEtpTf0' },
     { id: 'JZ7ATszdEqo', vibe: 'intense' },
     { id: 'hZOkwm52Nco', vibe: 'intense' },
@@ -153,8 +152,10 @@ export default function Radio()
                         >
                             <span className="radio__freq">{ station.freq }</span>
                             <span className="radio__title">
+				{ station.id === 'NFa7KlLyzGY' && 'Start here 🌴'}
+				{ station.id === 'NDQ3eafSKXo' && 'More good vibes 😎'}
                                 { station.vibe === 'intense' && <span className="radio__zap">⚡⚡⚡ </span> }
-                                { titles[station.id] ?? 'waitingfor.ai fm' }
+                                { titles[station.id] }
                             </span>
                             { tuned === station.id && <Equalizer /> }
                         </button>

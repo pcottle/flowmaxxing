@@ -3,6 +3,22 @@
     box-sizing: border-box;
 }
 
+html, body
+{
+    /* Touch-dragging the controls must never select page text or
+       trigger the iOS long-press callout / tap highlight. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea
+{
+    user-select: text;
+    -webkit-user-select: text;
+}
+
 .game
 {
     position: fixed;
