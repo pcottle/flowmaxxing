@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { track } from '@/Analytics.js'
+
 import './Radio.css'
 
 // Stations are plain YouTube videos dressed up as FM frequencies.
@@ -106,7 +108,13 @@ export default function Radio()
     }, [])
 
     // Radio semantics: tapping the live station turns it off, no pausing
-    const tune = (id) => setTuned(tuned === id ? null : id)
+    const tune = (id) =>
+    {
+        const next = tuned === id ? null : id
+
+        track('radio_tune', { station: next ? STATIONS.find((station) => station.id === next)?.freq : 'off' })
+        setTuned(next)
+    }
 
     return (
         <div className="radio">

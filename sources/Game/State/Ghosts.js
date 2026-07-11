@@ -1,4 +1,5 @@
 import State from './State.js'
+import { track } from '@/Analytics.js'
 
 export default class Ghosts
 {
@@ -146,6 +147,7 @@ export default class Ghosts
         {
             this.inside = true
             this.lastPublished = null
+            track('beach_join', { peers: this.peers.size })
         }
         else if(this.inside && distance > this.exitRadius)
         {

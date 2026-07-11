@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import State from '@/State/State.js'
+import { track } from '@/Analytics.js'
 
 import './EmojiPicker.css'
 
@@ -30,6 +31,7 @@ export default function EmojiPicker()
     const pick = (emoji) =>
     {
         State.getInstance()?.ghosts?.setEmoji(emoji)
+        track('emoji_send', { emoji })
         setExpanded(false)
     }
 

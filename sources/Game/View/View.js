@@ -1,3 +1,4 @@
+import Analytics from '@/Analytics.js'
 import Audio from './Audio.js'
 import BouncePads from './BouncePads.js'
 import Camera from './Camera.js'
@@ -85,6 +86,7 @@ export default class View
         this.sparkles = new Sparkles()
         this.sunShafts = new SunShafts()
         this.audio = new Audio()
+        this.analytics = new Analytics()
 
         this.prewarmShaders()
     }

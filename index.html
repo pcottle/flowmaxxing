@@ -8,22 +8,53 @@
         <link rel="icon" type="image/png" sizes="192x192" href="./favicon-192.png">
         <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
         <link rel="stylesheet" href="./sources/style.css">
+        <style>
+            /* Inline so something paints before the JS bundle arrives.
+               Background matches the renderer clear color (#222222). */
+            html, body { margin: 0; background: #222222; }
+            .boot
+            {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 16px;
+                padding: 24px;
+                color: rgba(255, 255, 255, 0.75);
+                font-family: -apple-system, system-ui, sans-serif;
+                font-size: 14px;
+                line-height: 1.5;
+                text-align: center;
+            }
+            .boot-spinner
+            {
+                width: 32px;
+                height: 32px;
+                border: 3px solid rgba(255, 255, 255, 0.2);
+                border-top-color: rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                animation: boot-spin 0.8s linear infinite;
+            }
+            @keyframes boot-spin { to { transform: rotate(360deg); } }
+        </style>
 
         <meta itemprop="name" content="WaitingFor.AI">
         <meta itemprop="description" content="The chillest place to wait for your coding agents; catch a vibe while your code cooks 🌴🔔 ">
-        <meta itemprop="image" content="https://pcottle.github.io/flowmaxxing/social/share-1200x630.png">
+        <meta itemprop="image" content="https://waitingfor.ai/social/share-1200x630.png">
 
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="WaitingFor.AI">
         <meta name="twitter:description" content="The chillest place to wait for your coding agents; catch a vibe while your code cooks 🌴🔔 ">
-        <meta name="twitter:image" content="https://pcottle.github.io/flowmaxxing/social/share-1200x600.png">
+        <meta name="twitter:image" content="https://waitingfor.ai/social/share-1200x600.png">
 
         <meta property="og:site_name" content="WaitingFor.AI">
         <meta property="og:type" content="website">
-        <meta property="og:url" content="https://pcottle.github.io/flowmaxxing/">
+        <meta property="og:url" content="https://waitingfor.ai/">
         <meta property="og:title" content="WaitingFor.AI">
         <meta property="og:description" content="The chillest place to wait for your coding agents; catch a vibe while your code cooks 🌴🔔 ">
-        <meta property="og:image" content="https://pcottle.github.io/flowmaxxing/social/share-1200x630.png">
+        <meta property="og:image" content="https://waitingfor.ai/social/share-1200x630.png">
 
         <!-- Google Analytics (same GA4 property as the Firebase project) -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-D9P0PQKWLY"></script>
@@ -35,6 +66,10 @@
         </script>
     </head>
     <body>
+        <div class="boot">
+            <div class="boot-spinner"></div>
+            <div class="boot-text">finding the vibe&hellip;</div>
+        </div>
         <div class="game">
             <div class="ui-root"></div>
         </div>
