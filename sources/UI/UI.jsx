@@ -2,6 +2,7 @@ import './UI.css'
 import Controls from './Controls.jsx'
 import TouchControls from './TouchControls.jsx'
 import EmojiPicker from './EmojiPicker.jsx'
+import Radio from './Radio.jsx'
 
 const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches
     || navigator.maxTouchPoints > 0
@@ -12,7 +13,10 @@ export default function UI()
     return (
         <div className="ui">
             { IS_TOUCH ? <TouchControls /> : <Controls /> }
-            <EmojiPicker />
+            <div className="ui-top">
+                <EmojiPicker />
+                <Radio />
+            </div>
         </div>
     )
 }

@@ -3,11 +3,6 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    position: absolute;
-    left: 50%;
-    top: max(12px, env(safe-area-inset-top));
-    transform: translateX(-50%);
-    pointer-events: auto;
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
