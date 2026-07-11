@@ -16,6 +16,7 @@ import ProgressiveBounceCourses from './ProgressiveBounceCourses.js'
 import Tideline from './Tideline.js'
 import DuneMelody from './DuneMelody.js'
 import Cyclones from './Cyclones.js'
+import Ghosts from './Ghosts.js'
 
 export default class State
 {
@@ -51,6 +52,7 @@ export default class State
         this.tideline = new Tideline()
         this.duneMelody = new DuneMelody()
         this.cyclones = new Cyclones()
+        this.ghosts = new Ghosts()
     }
 
     resize()
@@ -75,5 +77,6 @@ export default class State
         this.tideline.update()
         this.duneMelody.update()
         this.cyclones.update()
+        this.ghosts.update()
     }
 }

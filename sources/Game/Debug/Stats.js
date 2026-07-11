@@ -7,6 +7,13 @@ export default class Stats
         this.instance = new StatsJs()
         this.instance.showPanel(3)
 
+        // Bottom right instead of stats.js's default top left,
+        // matching the debug menu's right inset
+        this.instance.dom.style.top = 'auto'
+        this.instance.dom.style.left = 'auto'
+        this.instance.dom.style.bottom = '0'
+        this.instance.dom.style.right = '15px'
+
         this.active = false
         this.hidden = false
         this.max = 40

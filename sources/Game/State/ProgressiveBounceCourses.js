@@ -550,24 +550,6 @@ export default class ProgressiveBounceCourses
         }
     }
 
-    skipPassedPads(playerDistance)
-    {
-        if(!this.course.started)
-            return
-
-        for(const pad of this.course.pads)
-        {
-            if(pad.index > this.course.revealedUntil)
-                continue
-
-            if(this.isPadResolved(pad))
-                continue
-
-            if(playerDistance > pad.distance + this.missDistance)
-                this.skipPad(pad)
-        }
-    }
-
     bouncePad(pad, player)
     {
         const perfect = this.state.controls.keys.down.jump
@@ -798,8 +780,6 @@ export default class ProgressiveBounceCourses
 
         if(course.completedAt === 0 && !course.started && playerDistance > course.pads[0].distance + this.missDistance)
             this.completeCourse(false, playerDistance)
-
-        this.skipPassedPads(playerDistance)
 
         if(!prize.collected && this.arePadsResolved(course))
         {

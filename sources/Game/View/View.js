@@ -9,6 +9,7 @@ import DuneMelody from './DuneMelody.js'
 import Fireflies from './Fireflies.js'
 import Fish from './Fish.js'
 import Footprints from './Footprints.js'
+import Ghosts from './Ghosts.js'
 import Grass from './Grass.js'
 import HorizonIslands from './HorizonIslands.js'
 import Noises from './Noises.js'
@@ -60,6 +61,7 @@ export default class View
         this.terrains = new Terrains()
         this.chunks = new Chunks()
         this.player = new Player()
+        this.ghosts = new Ghosts()
         this.ribbon = new Ribbon()
         this.grass = new Grass()
         this.props = new Props()
@@ -135,6 +137,7 @@ export default class View
         this.terrains.update()
         this.chunks.update()
         this.player.update()
+        this.ghosts.update()
         this.ribbon.update()
         this.grass.update()
         this.props.update()
