@@ -8,11 +8,8 @@ import './Radio.css'
 // (each handed out once), then random FM frequencies once those run out.
 const RAW_STATIONS = [
     { id: 'NDQ3eafSKXo' },
-    { id: 'X4VbdwhkE10' },
     { id: '8CdPZ6VQucg' },
-    { id: 'GGaGODIG1kc' },
     { id: 'S4id5sFAma4' },
-    { id: 'uXsZz4bwEYQ' },
     { id: 'NFa7KlLyzGY' },
     { id: 'wyFIiEtpTf0' },
     { id: 'JZ7ATszdEqo', vibe: 'intense' },
@@ -49,6 +46,30 @@ function assignFrequencies(stations)
 }
 
 const STATIONS = assignFrequencies(RAW_STATIONS)
+
+// Background-music level, not foreground-video level (0-100)
+const RADIO_VOLUME = 35
+
+// Skip the intro: tune in 60s deep so the song reads immediately
+const RADIO_START = 17
+
+// No volume URL param exists — ask the player over the widget postMessage API.
+// The player isn't ready the instant the iframe loads, so retry a few times.
+function setEmbedVolume(iframe)
+{
+    if(!iframe?.contentWindow)
+        return
+
+    const send = () => iframe.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func: 'setVolume', args: [ RADIO_VOLUME ] }),
+        '*'
+    )
+
+    send()
+    setTimeout(send, 400)
+    setTimeout(send, 1200)
+    setTimeout(send, 2500)
+}
 
 function Equalizer()
 {
@@ -103,9 +124,10 @@ export default function Radio()
                     <div className="radio__screen">
                         <iframe
                             key={ tuned }
-                            src={ `https://www.youtube-nocookie.com/embed/${tuned}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1` }
+                            src={ `https://www.youtube-nocookie.com/embed/${tuned}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&start=${RADIO_START}` }
                             title="radio"
                             allow="autoplay; encrypted-media"
+                            onLoad={ (event) => setEmbedVolume(event.currentTarget) }
                         ></iframe>
                     </div>
                 }
