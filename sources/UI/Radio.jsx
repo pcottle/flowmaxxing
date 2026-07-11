@@ -50,7 +50,7 @@ function assignFrequencies(stations)
 const STATIONS = assignFrequencies(RAW_STATIONS)
 
 // Background-music level, not foreground-video level (0-100)
-const RADIO_VOLUME = 35
+const RADIO_VOLUME = 75
 
 // Skip the intro: tune in 60s deep so the song reads immediately
 const RADIO_START = 17
