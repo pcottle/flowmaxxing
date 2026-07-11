@@ -378,7 +378,7 @@ export default class ProgressiveBounceCourses
                 bounceTime: 0,
                 skipped: false,
                 skipTime: 0,
-                revealTime: i === 0 ? this.time.elapsed : 0
+                revealTime: this.time.elapsed
             })
 
             const pad = pads[pads.length - 1]
@@ -424,7 +424,7 @@ export default class ProgressiveBounceCourses
             failed: false,
             failedDistance: 0,
             started: false,
-            revealedUntil: 0,
+            revealedUntil: pads.length - 1,
             streakLevel: this.streak,
             speedSpread,
             lastBounceTime: - 999,
@@ -469,7 +469,7 @@ export default class ProgressiveBounceCourses
         course.failed = false
         course.failedDistance = 0
         course.started = false
-        course.revealedUntil = 0
+        course.revealedUntil = course.pads.length - 1
         course.lastBounceTime = - 999
         course.prize.collected = false
         course.prize.collectTime = 0
@@ -481,7 +481,7 @@ export default class ProgressiveBounceCourses
             pad.skipped = false
             pad.skipTime = 0
             pad.lastBounceTime = - 999
-            pad.revealTime = pad.index === 0 ? this.time.elapsed : 0
+            pad.revealTime = this.time.elapsed
         }
 
         this.events.emit('courseStart', course)
@@ -497,9 +497,7 @@ export default class ProgressiveBounceCourses
 
     getCollisionRevealLimit(course = this.course)
     {
-        // The faint preview pad should still be physical. If it is visible and
-        // the player reaches it, the course should advance instead of feeling dead.
-        return Math.min(course.pads.length - 1, course.revealedUntil + 1)
+        return course.revealedUntil
     }
 
     revealThrough(index)

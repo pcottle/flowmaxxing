@@ -129,6 +129,10 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    max-height: min(280px, 42vh);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
 .radio__station
@@ -190,4 +194,34 @@
 {
     flex-shrink: 0;
     height: 9px;
+}
+
+/* Intense stations run hot: amber glow, warm equalizer, lightning up front */
+.radio__station--intense
+{
+    color: rgba(255, 196, 120, 0.85);
+    background: rgba(255, 140, 40, 0.08);
+}
+
+.radio__station--intense:hover
+{
+    color: #ffd9a0;
+    background: rgba(255, 140, 40, 0.16);
+}
+
+.radio__station--intense.radio__station--live
+{
+    color: #ffe0b0;
+    background: rgba(255, 140, 40, 0.22);
+}
+
+.radio__station--intense .radio__freq
+{
+    opacity: 0.75;
+}
+
+.radio__zap
+{
+    font-size: 10px;
+    letter-spacing: -0.1em;
 }
