@@ -121,6 +121,16 @@ export default class CameraThirdPerson
             this.positionInitialised = true
         }
 
+        // Resolve terrain before calculating the look rotation. At steep
+        // upward viewing angles the ideal orbit position is underground; if
+        // the rotation is calculated first, position and quaternion describe
+        // two different camera poses every frame and visibly jitter.
+        const chunks = this.state.chunks
+        const elevation = chunks.getElevationForPosition(this.position[0], this.position[2])
+
+        if(elevation !== false && this.position[1] < elevation + 1)
+            this.position[1] = elevation + 1
+
         // Target
         const target = vec3.fromValues(
             this.player.position.current[0],
@@ -132,12 +142,5 @@ export default class CameraThirdPerson
         const toTargetMatrix = mat4.create()
         mat4.targetTo(toTargetMatrix, this.position, target, this.gameUp)
         quat2.fromMat4(this.quaternion, toTargetMatrix)
-        
-        // Clamp to ground
-        const chunks = this.state.chunks
-        const elevation = chunks.getElevationForPosition(this.position[0], this.position[2])
-
-        if(elevation && this.position[1] < elevation + 1)
-            this.position[1] = elevation + 1
     }
 }
