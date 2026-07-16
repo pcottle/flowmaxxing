@@ -9,19 +9,21 @@ const EMOJIS = [ '👋', '🙂', '😎', '❤️', '🔥', '🌊', '✨', '🌴'
 
 export default function EmojiPicker()
 {
-    // Only offered inside the beach circle, where other players are visible
-    const [ inside, setInside ] = useState(false)
+    // Only offered inside the beach circle when other players are actually
+    // nearby — no point communicating with an empty beach
+    const [ visible, setVisible ] = useState(false)
     const [ expanded, setExpanded ] = useState(false)
 
     useEffect(() =>
     {
         const interval = setInterval(() =>
         {
-            const isInside = State.getInstance()?.ghosts?.inside ?? false
+            const ghosts = State.getInstance()?.ghosts
+            const isVisible = (ghosts?.inside ?? false) && (ghosts?.peers?.size ?? 0) > 0
 
-            setInside(isInside)
+            setVisible(isVisible)
 
-            if(!isInside)
+            if(!isVisible)
                 setExpanded(false)
         }, 250)
 
@@ -36,7 +38,7 @@ export default function EmojiPicker()
     }
 
     return (
-        <div className={ inside ? 'emoji-picker' : 'emoji-picker emoji-picker--hidden' }>
+        <div className={ visible ? 'emoji-picker' : 'emoji-picker emoji-picker--hidden' }>
             { expanded && EMOJIS.map((emoji) =>
                 <button
                     key={ emoji }
