@@ -24,6 +24,7 @@ export default class CameraThirdPerson
         this.springRate = 6
         this.positionInitialised = false
         this.autoTurnRate = 1.2
+        this.keyboardLookSpeed = 1.8 // radians per second when rotating with the arrow keys
 
         // Held look-down after bounce pad launches so the next spiral pads
         // stay in view through the whole tower sequence.
@@ -45,6 +46,14 @@ export default class CameraThirdPerson
     deactivate()
     {
         this.active = false
+    }
+
+    clampPhi()
+    {
+        if(this.phi < this.phiLimits.min)
+            this.phi = this.phiLimits.min
+        if(this.phi > this.phiLimits.max)
+            this.phi = this.phiLimits.max
     }
 
     update()
@@ -78,10 +87,7 @@ export default class CameraThirdPerson
             this.phi -= normalisedPointer.y * 2
             this.theta -= normalisedPointer.x * 2
 
-            if(this.phi < this.phiLimits.min)
-                this.phi = this.phiLimits.min
-            if(this.phi > this.phiLimits.max)
-                this.phi = this.phiLimits.max
+            this.clampPhi()
         }
         else if(this.player.horizontalSpeed > 2)
         {
@@ -97,6 +103,22 @@ export default class CameraThirdPerson
                 this.theta += angleDelta * (1 - Math.exp(- this.autoTurnRate * (0.4 + strength) * time.delta))
             }
         }
+
+        // Arrow keys rotate the view
+        const keysDown = this.controls.keys.down
+        const lookStep = this.keyboardLookSpeed * time.delta
+
+        if(keysDown.lookLeft)
+            this.theta += lookStep
+        if(keysDown.lookRight)
+            this.theta -= lookStep
+        if(keysDown.lookUp)
+            this.phi += lookStep
+        if(keysDown.lookDown)
+            this.phi -= lookStep
+
+        if(keysDown.lookUp || keysDown.lookDown)
+            this.clampPhi()
 
 
         // Position (springs toward the ideal orbit position)
