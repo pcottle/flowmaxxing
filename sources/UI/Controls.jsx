@@ -83,19 +83,6 @@ export default function Controls()
                     </div>
                 }
             />
-            <Control
-                label="look"
-                keys={
-                    <div className="wasd">
-                        <div className="wasd__row"><Key>↑</Key></div>
-                        <div className="wasd__row">
-                            <Key>←</Key>
-                            <Key>↓</Key>
-                            <Key>→</Key>
-                        </div>
-                    </div>
-                }
-            />
             <Control label="jump" keys={ <Key wide>Space</Key> } />
             <Control label="dash" keys={ <Key wide>Shift</Key> } />
             <Control label="debug" keys={ <Key>B</Key> } />
