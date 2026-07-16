@@ -31,20 +31,37 @@ export default class Controls
         // Map
         this.keys.map = [
             {
-                codes: [ 'ArrowUp', 'KeyW' ],
+                codes: [ 'KeyW' ],
                 name: 'forward'
             },
             {
-                codes: [ 'ArrowRight', 'KeyD' ],
+                codes: [ 'KeyD' ],
                 name: 'strafeRight'
             },
             {
-                codes: [ 'ArrowDown', 'KeyS' ],
+                codes: [ 'KeyS' ],
                 name: 'backward'
             },
             {
-                codes: [ 'ArrowLeft', 'KeyA' ],
+                codes: [ 'KeyA' ],
                 name: 'strafeLeft'
+            },
+            // Arrow keys rotate the camera view
+            {
+                codes: [ 'ArrowUp' ],
+                name: 'lookUp'
+            },
+            {
+                codes: [ 'ArrowDown' ],
+                name: 'lookDown'
+            },
+            {
+                codes: [ 'ArrowLeft' ],
+                name: 'lookLeft'
+            },
+            {
+                codes: [ 'ArrowRight' ],
+                name: 'lookRight'
             },
             {
                 codes: [ 'ShiftLeft', 'ShiftRight' ],

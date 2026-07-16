@@ -39,6 +39,7 @@ export default class CameraFly
         this.rotateX = - Math.PI * 0.15
         this.rotateY = Math.PI * 0.25
         this.rotateXLimits = { min: - Math.PI * 0.5, max: Math.PI * 0.5 }
+        this.keyboardLookSpeed = 1.8 // radians per second when rotating with the arrow keys
     }
 
     activate(position = null, quaternion = null)
@@ -86,12 +87,25 @@ export default class CameraFly
             const normalisedPointer = this.viewport.normalise(this.controls.pointer.delta)
             this.rotateX -= normalisedPointer.y * 2
             this.rotateY -= normalisedPointer.x * 2
-
-            if(this.rotateX < this.rotateXLimits.min)
-                this.rotateX = this.rotateXLimits.min
-            if(this.rotateX > this.rotateXLimits.max)
-                this.rotateX = this.rotateXLimits.max
         }
+
+        // Arrow keys rotate the view
+        const keysDown = this.controls.keys.down
+        const lookStep = this.keyboardLookSpeed * this.time.delta
+
+        if(keysDown.lookLeft)
+            this.rotateY += lookStep
+        if(keysDown.lookRight)
+            this.rotateY -= lookStep
+        if(keysDown.lookUp)
+            this.rotateX += lookStep
+        if(keysDown.lookDown)
+            this.rotateX -= lookStep
+
+        if(this.rotateX < this.rotateXLimits.min)
+            this.rotateX = this.rotateXLimits.min
+        if(this.rotateX > this.rotateXLimits.max)
+            this.rotateX = this.rotateXLimits.max
 
         // console.log('this.rotateY', this.rotateY)
         
