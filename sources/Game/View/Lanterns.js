@@ -136,6 +136,25 @@ export default class Lanterns
         lantern.driftZ = - 0.3 - Math.random() * 0.5 // loose down-beach drift
     }
 
+    clear()
+    {
+        for(let i = 0; i < this.count; i++)
+        {
+            const lantern = this.pool[i]
+
+            if(!lantern.active)
+                continue
+
+            lantern.active = false
+            lantern.y = - 1000
+            this.positionAttribute.setXYZ(i, lantern.x, lantern.y, lantern.z)
+            this.alphaAttribute.setX(i, 0)
+        }
+
+        this.positionAttribute.needsUpdate = true
+        this.alphaAttribute.needsUpdate = true
+    }
+
     update()
     {
         const delta = this.time.delta
@@ -152,8 +171,13 @@ export default class Lanterns
 
         this.points.visible = presence > 0.01
 
+        // Come daylight (or rain) the ritual is over: retire any lanterns still
+        // aloft so nothing lingers frozen through the day and pops back at dusk
         if(!this.points.visible)
+        {
+            this.clear()
             return
+        }
 
         this.material.uniforms.uTime.value = elapsed
         this.material.uniforms.uNight.value = presence
