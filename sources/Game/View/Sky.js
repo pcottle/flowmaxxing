@@ -9,6 +9,7 @@ import SkySphereMaterial from './Materials/SkySphereMaterial.js'
 import StarsMaterial from './Materials/StarsMaterial.js'
 import CloudsMaterial from './Materials/CloudsMaterial.js'
 import MoonMaterial from './Materials/MoonMaterial.js'
+import AuroraMaterial from './Materials/AuroraMaterial.js'
 
 export default class Sky
 {
@@ -32,6 +33,7 @@ export default class Sky
         this.setBackground()
         this.setSphere()
         this.setClouds()
+        this.setAurora()
         this.setSun()
         this.setMoon()
         this.setShootingStar()
@@ -119,7 +121,32 @@ export default class Sky
             new THREE.SphereGeometry(9.5, 64, 32),
             this.clouds.material
         )
+        this.clouds.mesh.renderOrder = 2 // in front of the aurora
         this.customRender.scene.add(this.clouds.mesh)
+    }
+
+    setAurora()
+    {
+        // Lives in the sky dome render, so the glow bleeds into the fog tint
+        this.aurora = {}
+        this.aurora.material = new AuroraMaterial()
+        this.aurora.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(9.55, 64, 32),
+            this.aurora.material
+        )
+        this.aurora.mesh.renderOrder = 1
+        this.customRender.scene.add(this.aurora.mesh)
+
+        // Rare clear-night windows, eased in and out on the game clock
+        this.aurora.activity = 0
+        this.aurora.active = false
+        this.aurora.nextTime = 90 + Math.random() * 90
+        this.aurora.startTime = - Infinity
+        this.aurora.duration = 0
+        this.aurora.durationMin = 45
+        this.aurora.durationMax = 85
+        this.aurora.intervalMin = 150
+        this.aurora.intervalMax = 390
     }
 
     setSun()
@@ -260,6 +287,16 @@ export default class Sky
         if(!this.debug.active)
             return
 
+        // Jump straight to a clear midnight with the aurora already swelling
+        this.debug.ui.addQuickAction('🌌 night + aurora', () =>
+        {
+            this.state.day.jumpTo(0.5)
+            this.state.weather.stopRain()
+            this.aurora.active = true
+            this.aurora.duration = 90
+            this.aurora.startTime = this.state.time.elapsed - this.aurora.duration * 0.18
+        })
+
         // Clouds
         const cloudsFolder = this.debug.ui.getFolder('view/sky/clouds')
 
@@ -267,6 +304,23 @@ export default class Sky
         cloudsFolder.add(this.clouds.material.uniforms.uCoverage, 'value').min(0).max(1).step(0.01).name('uCoverage')
         cloudsFolder.add(this.clouds.material.uniforms.uSoftness, 'value').min(0.02).max(1).step(0.01).name('uSoftness')
         cloudsFolder.add(this.clouds.material.uniforms.uOpacity, 'value').min(0).max(1).step(0.01).name('uOpacity')
+
+        // Aurora
+        const auroraFolder = this.debug.ui.getFolder('view/sky/aurora')
+
+        auroraFolder.add(this.aurora.material.uniforms.uIntensity, 'value').min(0).max(2.5).step(0.01).name('uIntensity')
+        auroraFolder.addColor(this.aurora.material.uniforms.uColorFringe, 'value').name('uColorFringe')
+        auroraFolder.addColor(this.aurora.material.uniforms.uColorLow, 'value').name('uColorLow')
+        auroraFolder.addColor(this.aurora.material.uniforms.uColorMid, 'value').name('uColorMid')
+        auroraFolder.addColor(this.aurora.material.uniforms.uColorHigh, 'value').name('uColorHigh')
+        auroraFolder.add(this.aurora, 'intervalMin').min(10).max(900).step(5).name('intervalMin')
+        auroraFolder.add(this.aurora, 'intervalMax').min(10).max(900).step(5).name('intervalMax')
+        auroraFolder.add({ show: () =>
+        {
+            this.aurora.active = true
+            this.aurora.startTime = this.state.time.elapsed
+            this.aurora.duration = 90
+        } }, 'show')
 
         // Sphere
         const sphereGeometryFolder = this.debug.ui.getFolder('view/sky/sphere/geometry')
@@ -361,6 +415,41 @@ export default class Sky
         )
         // Hide behind the storm deck like the sun disc
         this.moon.material.uniforms.uNightness.value = nightness * (1 - weatherState.rainIntensity * 0.8)
+
+        // Aurora: rare clear-night windows with a slow breathing envelope
+        const aurora = this.aurora
+        const elapsed = this.state.time.elapsed
+        const clearNight = nightness * (1 - weatherState.rainIntensity)
+
+        if(!aurora.active && clearNight > 0.6 && elapsed > aurora.nextTime)
+        {
+            aurora.active = true
+            aurora.startTime = elapsed
+            aurora.duration = aurora.durationMin + Math.random() * (aurora.durationMax - aurora.durationMin)
+        }
+
+        if(aurora.active)
+        {
+            const progress = (elapsed - aurora.startTime) / aurora.duration
+
+            if(progress >= 1 || clearNight < 0.3)
+            {
+                aurora.active = false
+                aurora.nextTime = elapsed + aurora.intervalMin + Math.random() * (aurora.intervalMax - aurora.intervalMin)
+            }
+            else
+            {
+                const envelope = Math.sin(Math.min(Math.max(progress, 0), 1) * Math.PI)
+                aurora.activity += (envelope - aurora.activity) * (1 - Math.exp(- 0.8 * this.state.time.delta))
+            }
+        }
+        else
+        {
+            aurora.activity += (0 - aurora.activity) * (1 - Math.exp(- 0.5 * this.state.time.delta))
+        }
+
+        aurora.material.uniforms.uTime.value = elapsed
+        aurora.material.uniforms.uActivity.value = aurora.activity * clearNight
 
         // Shooting star
         const time = this.state.time

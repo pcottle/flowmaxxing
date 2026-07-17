@@ -3,6 +3,7 @@ uniform float uOpacity;
 varying float vProgress;
 varying vec3 vColor;
 varying vec3 vHighlightColor;
+varying vec3 vSandColor;
 varying float vRotation;
 varying float vStretch;
 varying float vType;
@@ -15,8 +16,9 @@ void main()
     local = mat2(angleCos, - angleSin, angleSin, angleCos) * local;
     local.x *= vStretch;
 
-    float isPuff = step(0.5, vType) * step(vType, 1.5);
-    float isCurl = step(1.5, vType);
+    float isPuff = step(0.5, vType) * (1.0 - step(1.5, vType));
+    float isCurl = step(1.5, vType) * (1.0 - step(2.5, vType));
+    float isSand = step(2.5, vType);
 
     // Shapes are hard-edged (toon); only the in/out is a short temporal fade
     float fadeIn = smoothstep(0.0, 0.08, vProgress);
@@ -39,6 +41,10 @@ void main()
     float puffAlpha = step(length(gl_PointCoord - vec2(0.5)), 0.36) * 0.9;
     vec3 puffColor = mix(vHighlightColor, vec3(1.0), 0.6);
 
+    // Sand puff: same crisp disc, kicked-up beach color with a pale crown
+    float sandAlpha = step(length(gl_PointCoord - vec2(0.5)), 0.34) * 0.85;
+    vec3 sandColor = mix(vSandColor, vec3(1.0), 0.15);
+
     // Wind curl: trailing line winding into a spinning spiral head — the
     // classic Wind Waker wind glyph
     vec2 spiralCenter = local - vec2(0.18, 0.0);
@@ -56,6 +62,8 @@ void main()
     alpha = mix(alpha, puffAlpha, isPuff);
     color = mix(color, curlColor, isCurl);
     alpha = mix(alpha, curlAlpha, isCurl);
+    color = mix(color, sandColor, isSand);
+    alpha = mix(alpha, sandAlpha, isSand);
 
     gl_FragColor = vec4(color, alpha * fadeIn * fadeOut * uOpacity);
 }

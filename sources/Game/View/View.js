@@ -13,6 +13,7 @@ import Footprints from './Footprints.js'
 import Ghosts from './Ghosts.js'
 import Grass from './Grass.js'
 import HorizonIslands from './HorizonIslands.js'
+import Lanterns from './Lanterns.js'
 import Noises from './Noises.js'
 import ObstacleCourses from './ObstacleCourses.js'
 import Particles from './Particles.js'
@@ -82,6 +83,7 @@ export default class View
         this.crabs = new Crabs()
         this.fireflies = new Fireflies()
         this.campfires = new Campfires()
+        this.lanterns = new Lanterns()
         this.welcomeSign = new WelcomeSign()
         this.sparkles = new Sparkles()
         this.sunShafts = new SunShafts()
@@ -125,6 +127,7 @@ export default class View
         this.rain.resize()
         this.fireflies.resize()
         this.campfires.resize()
+        this.lanterns.resize()
         this.sparkles.resize()
         this.sunShafts.resize()
         this.tideline.resize()
@@ -159,6 +162,7 @@ export default class View
         this.crabs.update()
         this.fireflies.update()
         this.campfires.update()
+        this.lanterns.update()
         this.welcomeSign.update()
         this.sparkles.update()
         this.sunShafts.update()

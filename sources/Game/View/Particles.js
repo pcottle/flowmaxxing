@@ -30,6 +30,18 @@ export default class Particles
         this.landStreakSize = 1
         this.landStreakCount = 6
         this.trickStreakSize = 1 // roll / bounce / bump bursts
+        this.sandPuffSize = 1.35
+
+        // Continuous emitters: carve spray, ski rooster tail, swim wake
+        this.carveSprayMinSpeed = 5
+        this.carveSprayRate = 26
+        this.carveSprayTimer = 0
+        this.skiSprayMinSpeed = 19
+        this.skiSprayRate = 9
+        this.skiSprayTimer = 0
+        this.wakeSprayMinSpeed = 2.5
+        this.wakeSprayRate = 12
+        this.wakeSprayTimer = 0
         this.setGeometry()
         this.setMaterial()
         this.setPoints()
@@ -77,6 +89,28 @@ export default class Particles
                     lifetime: 0.62
                 }
             )
+
+            // Kicked sand ring on touch-down
+            this.spawnPuffBurst(3 + Math.round(intensity * 7), playerState.position.current, {
+                type: 3,
+                speed: 1.6 + intensity * 2.6,
+                up: 1.2 + intensity * 1.6,
+                size: this.sandPuffSize,
+                lifetime: 0.6
+            })
+        })
+
+        playerState.events.on('butterLand', (bonus) =>
+        {
+            // Soft downhill touchdown: a modest puff trail instead of a burst
+            const intensity = Math.min(bonus / 6, 1)
+            this.spawnPuffBurst(2 + Math.round(intensity * 3), playerState.position.current, {
+                type: 3,
+                speed: 1.2 + intensity * 1.4,
+                up: 0.9 + intensity * 0.8,
+                size: this.sandPuffSize * 0.8,
+                lifetime: 0.5
+            })
         })
 
         playerState.events.on('roll', (direction) =>
@@ -441,6 +475,59 @@ export default class Particles
         types.needsUpdate = true
     }
 
+    // Generic ballistic puff burst: type 1 = white sea spray, type 3 = kicked
+    // sand. Angle/spread steer the burst like spawnWindMarks; gravity arcs it
+    spawnPuffBurst(burstCount, origin, options)
+    {
+        const positions = this.geometry.attributes.position
+        const velocities = this.geometry.attributes.aVelocity
+        const spawnTimes = this.geometry.attributes.aSpawnTime
+        const lifetimes = this.geometry.attributes.aLifetime
+        const sizes = this.geometry.attributes.aSize
+        const rotations = this.geometry.attributes.aRotation
+        const stretches = this.geometry.attributes.aStretch
+        const types = this.geometry.attributes.aType
+
+        for(let i = 0; i < burstCount; i++)
+        {
+            const baseAngle = options.angle ?? Math.random() * Math.PI * 2
+            const spread = options.spread ?? Math.PI * 2
+            const angle = baseAngle + (Math.random() - 0.5) * spread
+            const radius = (options.radius ?? 0.35) * (0.5 + Math.random())
+            const radial = options.speed * (0.5 + Math.random() * 0.5)
+
+            positions.setXYZ(
+                this.index,
+                origin[0] + Math.sin(angle) * radius,
+                origin[1] + (options.baseY ?? 0.12) + Math.random() * 0.15,
+                origin[2] + Math.cos(angle) * radius
+            )
+            velocities.setXYZ(
+                this.index,
+                Math.sin(angle) * radial + (options.driftX ?? 0),
+                options.up * (0.5 + Math.random()),
+                Math.cos(angle) * radial + (options.driftZ ?? 0)
+            )
+            spawnTimes.setX(this.index, this.time.elapsed)
+            lifetimes.setX(this.index, options.lifetime * (0.7 + Math.random() * 0.6))
+            sizes.setX(this.index, options.size * (0.6 + Math.random() * 0.8))
+            rotations.setX(this.index, Math.random() * Math.PI * 2)
+            stretches.setX(this.index, 1)
+            types.setX(this.index, options.type ?? 1)
+
+            this.index = (this.index + 1) % this.count
+        }
+
+        positions.needsUpdate = true
+        velocities.needsUpdate = true
+        spawnTimes.needsUpdate = true
+        lifetimes.needsUpdate = true
+        sizes.needsUpdate = true
+        rotations.needsUpdate = true
+        stretches.needsUpdate = true
+        types.needsUpdate = true
+    }
+
     // Small wind curls flung outward from a trick — same spiral glyph as the
     // ambient curls, but short-lived punctuation marks around the player
     spawnCurlBurst(burstCount, origin, options)
@@ -567,6 +654,69 @@ export default class Particles
             }
         }
 
+        // Carve spray: sand kicked sideways off the rail (sea foam if carving
+        // through the shallows)
+        const speed = playerState.horizontalSpeed
+        const playerPosition = playerState.position.current
+
+        this.carveSprayTimer -= this.time.delta
+
+        if(playerState.carving && !playerState.swimming && speed > this.carveSprayMinSpeed && this.carveSprayTimer <= 0)
+        {
+            this.carveSprayTimer = 1 / this.carveSprayRate
+
+            this.spawnPuffBurst(1, playerPosition, {
+                type: playerPosition[1] < - 0.05 ? 1 : 3,
+                angle: this.getTravelAngle(playerState) + Math.PI,
+                spread: Math.PI * 0.9,
+                radius: 0.35,
+                speed: 1.4 + speed * 0.06,
+                up: 1.4 + Math.random(),
+                size: this.sandPuffSize,
+                lifetime: 0.65
+            })
+        }
+
+        // Ski rooster tail: fast ground contact on dry sand throws a thin plume
+        this.skiSprayTimer -= this.time.delta
+
+        if(playerState.grounded && !playerState.swimming && !playerState.carving
+            && speed > this.skiSprayMinSpeed && playerPosition[1] > 0.1 && this.skiSprayTimer <= 0)
+        {
+            this.skiSprayTimer = 1 / this.skiSprayRate
+
+            this.spawnPuffBurst(1, playerPosition, {
+                type: 3,
+                angle: this.getTravelAngle(playerState) + Math.PI,
+                spread: Math.PI * 0.5,
+                radius: 0.25,
+                speed: 1.2 + speed * 0.05,
+                up: 1.2 + Math.random() * 0.8,
+                size: this.sandPuffSize * 0.75,
+                lifetime: 0.5
+            })
+        }
+
+        // Swim/wade wake: white puffs slapped off the surface
+        this.wakeSprayTimer -= this.time.delta
+        const inWater = playerState.swimming || playerPosition[1] < - 0.15
+
+        if(inWater && speed > this.wakeSprayMinSpeed && this.wakeSprayTimer <= 0)
+        {
+            this.wakeSprayTimer = 1 / this.wakeSprayRate
+
+            this.spawnPuffBurst(1, [playerPosition[0], 0.02, playerPosition[2]], {
+                type: 1,
+                angle: this.getTravelAngle(playerState) + Math.PI,
+                spread: Math.PI * 0.7,
+                radius: 0.3,
+                speed: 0.8 + speed * 0.05,
+                up: 0.8 + Math.random() * 0.8,
+                size: 0.9,
+                lifetime: 0.5
+            })
+        }
+
         // Ambient wind curls drifting down the corridor, stronger wind = more
         this.curlTimer -= this.time.delta
 
@@ -614,5 +764,11 @@ export default class Particles
         folder.add(this, 'landStreakSize').min(0.5).max(20).step(0.5)
         folder.add(this, 'landStreakCount').min(0).max(30).step(1)
         folder.add(this, 'trickStreakSize').min(0.5).max(20).step(0.5)
+        folder.add(this, 'sandPuffSize').min(0.5).max(20).step(0.25)
+        folder.add(this, 'carveSprayRate').min(0).max(60).step(1)
+        folder.add(this, 'skiSprayMinSpeed').min(5).max(40).step(0.5)
+        folder.add(this, 'skiSprayRate').min(0).max(40).step(1)
+        folder.add(this, 'wakeSprayRate').min(0).max(40).step(1)
+        folder.addColor(this.material.uniforms.uSandColor, 'value').name('uSandColor')
     }
 }

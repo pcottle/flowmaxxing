@@ -14,6 +14,7 @@ export default function ParticlesMaterial()
             uSizeScale: { value: null },
             uColor: { value: new THREE.Color('#78c8ff') },
             uHighlightColor: { value: new THREE.Color('#ffffff') },
+            uSandColor: { value: new THREE.Color('#dcba7e') },
             uSunPosition: { value: new THREE.Vector3() },
             uOpacity: { value: 0.82 }
         },

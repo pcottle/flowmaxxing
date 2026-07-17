@@ -2,6 +2,7 @@ uniform float uTime;
 uniform float uSizeScale;
 uniform vec3 uColor;
 uniform vec3 uHighlightColor;
+uniform vec3 uSandColor;
 uniform vec3 uSunPosition;
 
 attribute vec3 aVelocity;
@@ -15,6 +16,7 @@ attribute float aType;
 varying float vProgress;
 varying vec3 vColor;
 varying vec3 vHighlightColor;
+varying vec3 vSandColor;
 varying float vRotation;
 varying float vStretch;
 varying float vType;
@@ -28,15 +30,17 @@ void main()
     float progress = age / aLifetime;
 
     // Damped outward drift with a slight upward float (wind streaks),
-    // a ballistic arc under gravity (spray puffs), or straight steady
+    // a ballistic arc under gravity (spray + sand puffs), or straight steady
     // drift (ambient wind curls)
     float aliveProgress = clamp(progress, 0.0, 1.0);
-    float isPuff = step(0.5, aType) * step(aType, 1.5);
-    float isCurl = step(1.5, aType);
+    float isPuff = step(0.5, aType) * (1.0 - step(1.5, aType));
+    float isCurl = step(1.5, aType) * (1.0 - step(2.5, aType));
+    float isSand = step(2.5, aType);
+    float isBallistic = max(isPuff, isSand);
     vec3 driftPosition = position + aVelocity * age * (1.0 - aliveProgress * 0.45);
     driftPosition.y += age * 0.55;
     vec3 ballisticPosition = position + aVelocity * age + vec3(0.0, - 4.5, 0.0) * age * age;
-    vec3 newPosition = mix(driftPosition, ballisticPosition, isPuff);
+    vec3 newPosition = mix(driftPosition, ballisticPosition, isBallistic);
     newPosition = mix(newPosition, position + aVelocity * age, isCurl);
 
     vec4 viewPosition = viewMatrix * modelMatrix * vec4(newPosition, 1.0);
@@ -57,6 +61,7 @@ void main()
     float sunShade = getSunShade(vec3(0.0, 1.0, 0.0));
     vColor = getSunShadeColor(uColor, sunShade);
     vHighlightColor = getSunShadeColor(uHighlightColor, sunShade);
+    vSandColor = getSunShadeColor(uSandColor, sunShade);
     vProgress = progress;
     vRotation = length(projectedDirection) > 0.0001 ? atan(projectedDirection.y, projectedDirection.x) : aRotation;
     vStretch = aStretch;
