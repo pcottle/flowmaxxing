@@ -13,7 +13,8 @@ export default class Controls
         this.events = new EventsEmitter()
 
         // Analog stick (touch joystick) — angle is relative to the camera, applied in Player.getInputRotation()
-        this.stick = { active: false, angle: 0 }
+        // magnitude is 0..1 deflection, applied as a speed throttle in Player
+        this.stick = { active: false, angle: 0, magnitude: 0 }
 
         this.setKeys()
         this.setPointer()

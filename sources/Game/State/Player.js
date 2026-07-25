@@ -29,6 +29,10 @@ export default class Player
         this.airControlRatio = 0.35
         this.rotationLerpRate = 7
 
+        // Touch stick throttle: intensity ramps up over throttleRampTime, drops instantly
+        this.throttleRampTime = 0.45
+        this.stickThrottle = 0
+
         // Dash
         this.dashImpulse = 18
         this.dashMaxSpeed = 42
@@ -435,6 +439,26 @@ export default class Player
         const inputRotation = this.getInputRotation()
         const hasInput = inputRotation !== false
 
+        // Touch stick throttle: scale by deflection, ramping up over throttleRampTime
+        // so movement starts subtle; easing off applies instantly. Keyboard is always 1
+        let throttle = 1
+
+        if(hasInput && this.controls.stick.active)
+        {
+            const target = this.controls.stick.magnitude
+
+            if(target > this.stickThrottle)
+                this.stickThrottle = Math.min(target, this.stickThrottle + delta / this.throttleRampTime)
+            else
+                this.stickThrottle = target
+
+            throttle = this.stickThrottle
+        }
+        else
+        {
+            this.stickThrottle = 0
+        }
+
         const currentSpeed = Math.hypot(this.velocity[0], this.velocity[2])
 
         this.carving = this.grounded && this.controls.keys.down.crouch && hasInput
@@ -443,7 +467,7 @@ export default class Player
         {
             const inputX = - Math.sin(inputRotation)
             const inputZ = - Math.cos(inputRotation)
-            const maxSpeed = (this.dashTimer > 0 ? this.inputSpeed + this.dashSustainSpeed : this.inputSpeed) * moveScale * (1 + this.flow * this.flowSpeedBonus)
+            const maxSpeed = (this.dashTimer > 0 ? this.inputSpeed + this.dashSustainSpeed : this.inputSpeed) * moveScale * (1 + this.flow * this.flowSpeedBonus) * throttle
             const control = this.grounded || this.dashTimer > 0 ? 1 : this.airControlRatio
             const steerRate = this.carving ? this.accelerationRate * this.carveSteerBoost : this.accelerationRate
             const ratio = 1 - Math.exp(- steerRate * control * delta)

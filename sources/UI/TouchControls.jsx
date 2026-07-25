@@ -6,6 +6,7 @@ import './TouchControls.css'
 
 const DEAD_ZONE = 12
 const NUB_RADIUS = 40
+const THROTTLE_CURVE = 1.5 // >1 gives finer control near the center; 1 = linear
 const MOVEMENT_KEYS = [ 'forward', 'backward', 'strafeLeft', 'strafeRight' ]
 
 // Throws on pointer ids the browser no longer tracks (e.g. finger already lifted)
@@ -30,6 +31,7 @@ function Joystick()
         if(controls)
         {
             controls.stick.active = false
+            controls.stick.magnitude = 0
 
             for(const name of MOVEMENT_KEYS)
                 controls.setButton(name, false)
@@ -76,8 +78,10 @@ function Joystick()
         if(magnitude > DEAD_ZONE)
         {
             const angle = Math.atan2(- dx, - dy)
+            const deflection = Math.min((magnitude - DEAD_ZONE) / (NUB_RADIUS - DEAD_ZONE), 1)
             controls.stick.active = true
             controls.stick.angle = angle
+            controls.stick.magnitude = Math.pow(deflection, THROTTLE_CURVE)
 
             // Quantize to 8-way booleans so held-key mechanics (carve, roll, glide) keep working
             controls.setButton('forward', Math.abs(angle) < Math.PI * 0.375)
@@ -88,6 +92,7 @@ function Joystick()
         else
         {
             controls.stick.active = false
+            controls.stick.magnitude = 0
 
             for(const name of MOVEMENT_KEYS)
                 controls.setButton(name, false)

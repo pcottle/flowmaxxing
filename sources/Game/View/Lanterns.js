@@ -162,11 +162,13 @@ export default class Lanterns
         const playerState = this.state.player
         const playerZ = playerState.position.current[2]
 
-        // Lanterns are a dusk-and-night ritual; rain keeps them grounded
+        // Lanterns are a proper-night ritual: stricter window than the
+        // fireflies (at sun height 0 the old window still read as ~94% night,
+        // so lanterns drifted through sunrise). Rain keeps them grounded
         const sunY = this.state.sun.position.y
         const nightFactor = this.nightOverride >= 0
             ? this.nightOverride
-            : 1 - THREE.MathUtils.smoothstep(sunY, - 0.02, 0.12)
+            : 1 - THREE.MathUtils.smoothstep(sunY, - 0.1, - 0.01)
         const presence = nightFactor * (1 - this.state.weather.rainIntensity)
 
         this.points.visible = presence > 0.01
@@ -225,6 +227,11 @@ export default class Lanterns
                 continue
 
             lantern.age += delta
+
+            // Dawn breaks the spell: stop climbing and begin the graceful
+            // fade-out now instead of drifting on through the morning
+            if(nightFactor < 0.5)
+                lantern.lifetime = Math.min(lantern.lifetime, lantern.age + this.fadeOutDuration)
 
             if(lantern.age >= lantern.lifetime)
             {
