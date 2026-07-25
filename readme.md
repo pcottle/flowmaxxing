@@ -2,7 +2,7 @@
 
 The chillest place to wait for your coding agents — catch a vibe while your code cooks.
 
-An infinite, procedurally generated beach world in the browser, built with Three.js and WebGL. You're a little glowing wisp gliding along an endless Wind Waker–style coastline: ski down hills, launch off crests, barrel roll, ride cyclone updrafts, and build up flow while seagulls wheel overhead, rain squalls roll through, and campfires flicker at dusk. Procedural audio (no samples — all raw Web Audio) keeps everything in a mellow A-pentatonic soundscape.
+An infinite, procedurally generated beach world in the browser, built with Three.js and WebGL. You're a little glowing wisp gliding along an endless Wind Waker–style coastline: ski down hills, launch off crests, barrel roll, wake cyclone updrafts, and build up flow while seagulls wheel overhead, rain squalls roll through, and campfires flicker at dusk. Procedural audio (no samples — all raw Web Audio) keeps everything in a mellow A-pentatonic soundscape.
 
 Live at [waitingfor.ai](https://waitingfor.ai/).
 

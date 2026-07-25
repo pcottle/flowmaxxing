@@ -165,6 +165,39 @@ export default class Particles
             })
         })
 
+        this.state.cyclones.events.on('cycloneWispCollect', ({ position, index }) =>
+        {
+            this.spawnCurlBurst(3 + index, position, {
+                spread: Math.PI * 2,
+                radius: 0.45,
+                speed: 1.8,
+                up: 1.4,
+                size: this.jumpCurlSize * 0.75,
+                lifetime: 0.65
+            })
+        })
+
+        this.state.cyclones.events.on('cycloneAwaken', ({ position }) =>
+        {
+            this.spawnCurlBurst(12, position, {
+                spread: Math.PI * 2,
+                radius: 1.1,
+                speed: 3.2,
+                up: 3.8,
+                size: this.jumpCurlSize,
+                lifetime: 1
+            })
+            this.spawnWindMarks(16, position, {
+                spread: Math.PI * 2,
+                radius: 1,
+                speed: 5,
+                up: 3,
+                size: this.jumpStreakSize,
+                stretch: 2,
+                lifetime: 0.7
+            })
+        })
+
         this.state.cyclones.events.on('cycloneLaunch', ({ position }) =>
         {
             // Big spiral send-off spinning up out of the column

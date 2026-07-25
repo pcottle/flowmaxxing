@@ -91,6 +91,18 @@ export default class Audio
             this.playThunder()
         })
 
+        this.state.cyclones.events.on('cycloneWispCollect', ({ index }) =>
+        {
+            const noteIndex = Math.min(index + 1, this.chimeFrequencies.length - 1)
+            this.playChime(this.chimeFrequencies[noteIndex], this.chimeVolume * 0.45, 1.2)
+        })
+
+        this.state.cyclones.events.on('cycloneAwaken', () =>
+        {
+            this.playWhoosh({ startFrequency: 140, endFrequency: 1400, duration: 0.7, volume: this.whooshVolume * 0.55 })
+            this.playChime(this.chimeFrequencies[5], this.chimeVolume * 0.65, 1.6)
+        })
+
         this.state.cyclones.events.on('cycloneLaunch', () =>
         {
             // Big rising gust with a sparkle on top

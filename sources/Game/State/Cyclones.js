@@ -29,6 +29,20 @@ export default class Cyclones
         // How far up the foothills they live: 0 = shoreline, 1 = mountain start
         this.inlandRatio = 0.75
 
+        // Cyclones sleep as small ground swirls until the player follows a
+        // three-wisp trail in from the beach. The generous reset radius keeps
+        // ordinary course corrections from wiping nearby progress.
+        this.revealDistance = 85
+        this.resetDistance = 110
+        this.wispRadius = 2.6
+        this.wispHeight = 1.8
+        this.wispFlow = 0.06
+        this.wispOffsets = [
+            [18, - 4],
+            [12, 4],
+            [6, - 3]
+        ]
+
         this.radius = 2.4
         this.height = 11
         this.launchVelocity = 48 // v²/56 ≈ 41m up — Elden Ring updraft, not a bounce pad
@@ -42,6 +56,7 @@ export default class Cyclones
         this.wanderSpeed = 0.12
 
         this.cyclones = new Map()
+        this.awakenedCyclones = new Set()
         this.debugCycloneCount = 0
 
         this.setDebug()
@@ -67,6 +82,15 @@ export default class Cyclones
             position: [0, 0, 0],
             baseElevation: 0,
             lastLaunchTime: - 999,
+            lastAwakenTime: - 999,
+            phase: this.awakenedCyclones.has(k) ? 'awakened' : 'dormant',
+            nextWisp: 0,
+            wispSide: random() < 0.5 ? - 1 : 1,
+            wisps: this.wispOffsets.map(() => ({
+                position: [0, 0, 0],
+                collected: false,
+                collectTime: - 999
+            })),
             built: false
         }
 
@@ -135,6 +159,124 @@ export default class Cyclones
         cyclone.position[0] = x
         cyclone.position[1] = cyclone.baseElevation
         cyclone.position[2] = anchorZ
+
+        this.updateWisps(cyclone)
+    }
+
+    updateWisps(cyclone)
+    {
+        for(let i = 0; i < cyclone.wisps.length; i++)
+        {
+            const wisp = cyclone.wisps[i]
+            const offset = this.wispOffsets[i]
+            const x = cyclone.position[0] + offset[0]
+            const z = cyclone.position[2] + offset[1] * cyclone.wispSide
+            const elevation = this.state.chunks.getElevationForPosition(x, z)
+
+            wisp.position[0] = x
+            wisp.position[1] = (elevation !== false && Number.isFinite(elevation)
+                ? Math.max(elevation, 0)
+                : cyclone.baseElevation) + this.wispHeight
+            wisp.position[2] = z
+        }
+    }
+
+    resetChallenge(cyclone)
+    {
+        cyclone.phase = 'dormant'
+        cyclone.nextWisp = 0
+
+        for(const wisp of cyclone.wisps)
+        {
+            wisp.collected = false
+            wisp.collectTime = - 999
+        }
+    }
+
+    getPlayerDistance(cyclone, player)
+    {
+        return Math.hypot(
+            player.position.current[0] - cyclone.position[0],
+            player.position.current[2] - cyclone.position[2]
+        )
+    }
+
+    updateChallenges(player)
+    {
+        for(const cyclone of this.cyclones.values())
+        {
+            if(!cyclone.built)
+                continue
+
+            const distance = this.getPlayerDistance(cyclone, player)
+
+            if(cyclone.phase === 'spent')
+            {
+                if(distance > this.resetDistance)
+                    this.resetChallenge(cyclone)
+
+                continue
+            }
+
+            // An awakened landmark remains armed across despawn/rebuild until
+            // the player eventually returns and rides it.
+            if(cyclone.phase === 'awakened')
+                continue
+
+            if(distance > this.resetDistance)
+            {
+                if(cyclone.phase === 'collecting')
+                    this.resetChallenge(cyclone)
+
+                continue
+            }
+
+            if(cyclone.phase === 'dormant')
+            {
+                if(distance > this.revealDistance)
+                    continue
+
+                cyclone.phase = 'collecting'
+            }
+
+            const wisp = cyclone.wisps[cyclone.nextWisp]
+
+            if(!wisp)
+                continue
+
+            const wispDistance = Math.hypot(
+                player.position.current[0] - wisp.position[0],
+                player.position.current[1] + 0.9 - wisp.position[1],
+                player.position.current[2] - wisp.position[2]
+            )
+
+            if(wispDistance > this.wispRadius)
+                continue
+
+            wisp.collected = true
+            wisp.collectTime = this.time.elapsed
+            cyclone.nextWisp++
+            player.addFlow(this.wispFlow)
+
+            this.events.emit('cycloneWispCollect', {
+                cyclone,
+                wisp,
+                index: cyclone.nextWisp,
+                position: [...wisp.position]
+            })
+
+            if(cyclone.nextWisp === cyclone.wisps.length)
+            {
+                cyclone.phase = 'awakened'
+                cyclone.lastAwakenTime = this.time.elapsed
+                this.awakenedCyclones.add(cyclone.k)
+
+                this.events.emit('cycloneAwaken', {
+                    cyclone,
+                    position: [...cyclone.position]
+                })
+            }
+        }
     }
 
     updateLaunches(player)
@@ -145,7 +287,7 @@ export default class Cyclones
 
         for(const cyclone of this.cyclones.values())
         {
-            if(!cyclone.built || Math.abs(cyclone.z - playerZ) > 60)
+            if(!cyclone.built || cyclone.phase !== 'awakened' || Math.abs(cyclone.z - playerZ) > 60)
                 continue
 
             if(this.time.elapsed - cyclone.lastLaunchTime < this.launchCooldown)
@@ -165,6 +307,8 @@ export default class Cyclones
             player.velocity[2] -= this.forwardCarry
             player.addFlow(this.launchFlow)
             cyclone.lastLaunchTime = this.time.elapsed
+            cyclone.phase = 'spent'
+            this.awakenedCyclones.delete(cyclone.k)
 
             this.events.emit('cycloneLaunch', {
                 cyclone,
@@ -184,6 +328,7 @@ export default class Cyclones
         const player = this.state.player
 
         this.updateCyclones(player)
+        this.updateChallenges(player)
         this.updateLaunches(player)
     }
 
@@ -205,6 +350,9 @@ export default class Cyclones
         folder.add(this, 'launchVelocity').min(10).max(70).step(0.5)
         folder.add(this, 'interval').min(400).max(4000).step(100)
         folder.add(this, 'inlandRatio').min(0.2).max(1).step(0.05)
+        folder.add(this, 'revealDistance').min(30).max(160).step(5)
+        folder.add(this, 'resetDistance').min(40).max(220).step(5)
+        folder.add(this, 'wispRadius').min(1).max(6).step(0.1)
         folder.add(this, 'forwardCarry').min(0).max(20).step(0.5)
         folder.add(this, 'radius').min(1).max(6).step(0.1)
         folder.add(this, 'height').min(4).max(24).step(0.5)
