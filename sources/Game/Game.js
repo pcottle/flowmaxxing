@@ -29,6 +29,27 @@ export default class Game
             this.resize()
         })
 
+        // requestAnimationFrame stops firing while the tab is hidden, which
+        // froze the world but left the ambient audio sounding its last levels.
+        // Tick the simulation and the audio that follows it from an interval
+        // instead — no rendering, and the sound keeps matching the weather.
+        // The pending rAF callback simply resumes the normal loop on return.
+        document.addEventListener('visibilitychange', () =>
+        {
+            if(document.hidden)
+            {
+                this.hiddenInterval = window.setInterval(() =>
+                {
+                    this.state.update()
+                    this.view.audio.update()
+                }, 60)
+            }
+            else
+            {
+                window.clearInterval(this.hiddenInterval)
+            }
+        })
+
         this.update()
     }
 
