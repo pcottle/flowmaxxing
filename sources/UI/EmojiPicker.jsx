@@ -5,7 +5,7 @@ import { track } from '@/Analytics.js'
 
 import './EmojiPicker.css'
 
-const EMOJIS = [ '👋', '🙂', '😎', '❤️', '🔥', '🌊', '✨', '🌴', '🍆', '💩' ]
+const EMOJIS = [ '👋', '🙂', '😎', '❤️', '🔥', '🌊', '✨', '🌴', '💩' ]
 
 export default function EmojiPicker()
 {

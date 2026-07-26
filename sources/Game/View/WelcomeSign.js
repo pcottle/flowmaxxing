@@ -36,7 +36,7 @@ export default class WelcomeSign
         this.placed = false
 
         // Drawn in the prompt box AND written to the clipboard on click
-        this.promptText = 'Edit the appropriate config settings to play the MacOS sound "Bottle" for when you need input and Glass when you are done'
+        this.promptText = 'Edit the appropriate config settings to play the MacOS sound "Bottle" for when you need input, including in Codex Plan mode, and Glass when you are done'
 
         this.setBoardTexture()
         this.setMeshes()
