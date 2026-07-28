@@ -32,3 +32,13 @@ This project must be deployed from the Vite build output, not the repository roo
 The GitHub Actions workflow builds `dist/` and publishes that folder to Pages.
 
 In the repository settings, set Pages to use **GitHub Actions** as the source.
+
+## Contributing
+
+Contributions are welcome! Feel free to open issues and pull requests.
+
+## License & credits
+
+This project is released under the [MIT License](LICENSE) — use it, remix it, ship it.
+
+It began as a fork of [infinite-world](https://github.com/brunosimon/infinite-world) by [Bruno Simon](https://github.com/brunosimon), which is published without an explicit license. The MIT license covers this fork's original contributions; code inherited from upstream remains under its original author's copyright.

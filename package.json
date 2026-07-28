@@ -9,7 +9,7 @@
     "build": "vite build"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@jniac/three-point-text-helper": "^1.0.8",
     "events": "^3.3.0",
