@@ -448,6 +448,157 @@ rim would drift off the swaying trunk.
 
 ---
 
+## 10. Visual craft — why the palm *reads* the way it does
+
+Everything above is mechanism. This section is art direction: the choices that make a
+handful of triangles read as a warm, hand-painted Wind-Waker palm rather than a game asset.
+If you're porting this look to a different object, these are the transferable principles.
+
+### 10.1 Silhouette first
+
+The palm is designed to be legible as a **black shape** before any color or shading lands.
+That's not incidental — it's the reason the ink outline exists and the reason the geometry
+is shaped the way it is:
+
+- **The lean is a silhouette device.** A vertical trunk reads as a pole; the `t²` seaward
+  curve gives the shape a *direction* and a bit of gesture, so a row of palms creates a
+  rhythm of parallel curves leaning at the ocean. Silhouette carries the "beach" read even
+  in a thumbnail.
+- **The drooping fronds break the top edge.** The `t^1.7` droop + tip taper turns each frond
+  into a comma-shaped stroke. A canopy of these gives a ragged, organic crown outline — the
+  opposite of a hard geometric cone. The eye reads "fronds" purely from the silhouette's
+  negative space between blades.
+- **Two frond layers exist for silhouette density, not detail.** The inner crown is rotated
+  `angleOffset 0.38` to sit *between* the outer fronds specifically so gaps in the outer
+  ring get filled — the silhouette stays full from any yaw without doubling the blade count.
+
+**Principle:** design the shape so the inverted-hull outline traces something recognizable.
+If the silhouette is muddy, no amount of shading rescues it.
+
+### 10.2 The outline as ink, not as an edge-detector
+
+Many toon pipelines derive outlines from a post-process (depth/normal edge detection). This
+project deliberately does **not** — it uses a geometric inverted hull, and that choice is
+visual, not just technical:
+
+- **The line is a real object in the world**, so it swings with the wind, scales with the
+  instance, and — crucially — **fogs with distance** (`getFogColor` in the outline fragment
+  shader). Near palms have a confident dark ink rim; far palms have a soft grey one; the
+  farthest have none. That distance-graded ink is what makes the tree feel *painted into*
+  the haze instead of stamped on top of it.
+- **Ink color is `#1c1713`, not black.** A warm near-black. Pure `#000` reads as a hole
+  punched in the frame; a dark warm brown sits in the world's color temperature and lets the
+  fog tint it convincingly toward the sky at distance.
+- **The frond collapse is an aesthetic decision as much as a fix.** Even if you *could*
+  outline the fronds cleanly, you wouldn't want a hard rim around every thin blade — it would
+  read as busy and mechanical. Outlining only the trunk (a single confident stroke) and
+  leaving the fronds as soft color masses is exactly how an illustrator would ink a palm.
+
+**Principle:** the outline is a brush stroke with weight, warmth, and atmospheric falloff —
+treat its color and its fade as palette decisions, not a 1-or-0 edge flag.
+
+### 10.3 Color: baked gradients doing the shading's job
+
+There are no lights and no textures. All the richness comes from **baked per-vertex color
+gradients** chosen to fake form and material:
+
+- **Trunk** `[0.36 + y*0.008, 0.27 + y*0.006, 0.19]` — a desaturated warm brown that
+  *lightens as it rises*. That vertical gradient fakes ambient sky-light landing on the top
+  of a rounded trunk without any actual lighting. It also separates the trunk from the
+  darker frond bases where they overlap.
+- **Fronds** `[0.20 + t*0.12, 0.38 + t*0.14, 0.16 + t*0.06]` — a **root-to-tip** gradient
+  from a shadowed inner green to a brighter, slightly yellow-green tip. This is pure
+  illustration logic: the exposed tips catch more light, the inner canopy is in self-shadow.
+  The green is kept muted (nothing near full saturation) so it sits in the gouache palette.
+- **The gradients are oriented, not random.** Trunk gradient runs along `y`; frond gradient
+  runs along the blade's length `x`. Baking color *along the form* is what sells volume on
+  flat-shaded geometry.
+
+**Principle:** author color as if you were dry-brushing the model — light where light would
+fall, cool/dark in the crevices — and let those baked gradients replace a lighting rig.
+
+### 10.4 Flat facets + the toon shade chain
+
+The baked color is only the base. On top, per vertex, runs the shared chain
+(`getTimeOfDayColor → getSunShadeColor(getSunShade) → getFogColor`). Visually this means:
+
+- **Faceted normals** (`toNonIndexed` + `computeVertexNormals`) give each triangle a single
+  flat tone. On the pentagonal trunk you can *count* the facets — that low-poly readout is
+  part of the charm, not a limitation to smooth away.
+- **`getSunShadeColor` tints the shaded facets blue-green**, not merely darker. So a palm at
+  midday has warm-green lit facets and cool-teal shadowed ones — the complementary
+  warm/cool split that makes toon foliage feel lush. This is the single biggest reason the
+  palm doesn't look like flat vertex-colored plastic.
+- **Shading is per-vertex on purpose.** Fronds are large flat blades; computing the shade at
+  three corners and interpolating gives a soft cross-blade falloff for free, while the trunk
+  facets stay crisply stepped. The fragment shader stays a one-liner.
+
+### 10.5 The palm across the day cycle
+
+Because the palm is wired to `uSunPosition` and the sky-fog texture, it re-grades itself all
+day with zero per-tree logic — and this is where the look really pays off:
+
+- **Midday** — full warm greens, tight blue-green shadow facets, crisp near-black ink, palm
+  sits clearly in front of a bright cyan sky.
+- **Golden hour** — `getTimeOfDayColor` washes the whole tree toward warm ochre
+  (`vec3(0.70,0.52,0.22)`); the fronds go amber, and because the fog texture *is* the orange
+  dawn sky, distant palms silhouette into that glow. The gloss of the moment is entirely a
+  side effect of the shared systems.
+- **Night** — the tree desaturates to cool slate (`vec3(0.12,0.18,0.24)`) and its outline,
+  fogged toward the dark blue sky, nearly dissolves; palms become soft dark masses against
+  the stars rather than detailed objects. That drop in detail at night is *correct* — it's
+  how the scene keeps depth without lighting.
+
+**Principle:** don't hand-author time-of-day variants. Wire the object to the one sun
+scalar and the one fog texture, and let the palm inherit the whole world's mood.
+
+### 10.6 Wind as life, subtly
+
+The wind is a **graphics** choice too. The `sway`-masked noise-scroll means the trunk is
+almost static (`(y/H)²·0.25`) while the frond tips drift (`0.3 → 1.0`). Visually this is the
+difference between a stiff prop and a living tree: the eye reads the near-motionless trunk as
+solid wood and the whispering canopy as light foliage. Because the **ink outline runs the
+exact same sway**, the whole silhouette breathes as one — the most common way to break the
+illusion is to let the outline lag, which instantly reads as a "double image."
+
+### 10.7 Composition in the frame
+
+- **Palms are sparse** (`perRow 1`, `probability 0.7`, `capacity 48`) and hug the shoreline.
+  They're framing elements — verticals that punctuate a mostly horizontal beach/sea/sky
+  composition — not ground cover. Scarcity keeps each one an event.
+- **The seaward lean points the eye at the water**, the scene's focal plane. The art and the
+  camera framing agree.
+- **Size variety** (`scale 0.75–1.25`) plus per-instance brightness jitter
+  (`tint 0.9–1.1`) breaks up the repetition of a single shared mesh so a grove doesn't read
+  as clones, without any extra geometry.
+
+---
+
+## 11. Transferring the palm's look to a new prop
+
+A checklist distilled from the craft notes above — use it when you author *any* new stylized
+object here so it lands in the same visual language:
+
+1. **Thumbnail the silhouette.** Would you recognize it as a black shape? Give it gesture
+   (the palm's lean) and break its outer edges organically (the frond droop).
+2. **Bake oriented color gradients** along the form — light where light falls, cooler/darker
+   in the crevices — instead of a flat color.
+3. **Keep the palette muted** (nothing near full saturation) so it sits in the gouache world.
+4. **Un-index and recompute normals** for honest flat facets; embrace the low-poly readout.
+5. **Run the shade chain** (`getTimeOfDayColor → getSunShadeColor(getSunShade) → getFogColor`)
+   so it inherits blue-green shadows, time-of-day grade, and atmospheric fog for free.
+6. **Add a shared inverted-hull outline** in warm near-black `#1c1713`, fogged at distance;
+   collapse open geometry so only the solid silhouette gets inked.
+7. **Wire it to `uSunPosition` and the sky-fog texture** — never hand-author day/night looks.
+8. **If it should feel alive, add `sway`-masked noise wind** and run the *same* sway in the
+   outline so the silhouette breathes as one piece.
+9. **Compose with scarcity and variety** — instance-level scale/tint jitter, thoughtful
+   placement, and a shape that points the eye where you want it.
+
+---
+
 *Companion to the main visual style guide. The palm is the canonical example of the prop
 pipeline: bake geometry + color + sway once, shade flat per-vertex, outline with a shared
-inverted hull, and scatter deterministically along the shore.*
+inverted hull, and scatter deterministically along the shore. Sections 10–11 above cover the
+art-direction reasoning — silhouette, ink, baked color, the toon shade chain, and how the
+tree re-grades itself across the day — which is the part that actually makes it look good.*
